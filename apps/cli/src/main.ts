@@ -6,14 +6,14 @@ import {
   createFetchTransport,
 } from "@repo/client";
 import { Effect } from "effect";
-import { createMacOsKeychainTokenStore } from "./auth-store.js";
+import { createPlatformTokenStore } from "./auth-store.js";
 import { parseCommand, runCommand } from "./commands.js";
 import { loginWithDevice } from "./login.js";
 
 const apiBaseUrl = process.env.AGENT_API_URL ?? "http://localhost:3000/api/v1";
 const authBaseUrl =
   process.env.AGENT_AUTH_URL ?? "http://localhost:3000/api/auth";
-const tokenStore = createMacOsKeychainTokenStore({
+const tokenStore = createPlatformTokenStore({
   service: "effect-agent-template",
   account: authBaseUrl,
 });

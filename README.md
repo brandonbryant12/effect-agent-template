@@ -22,6 +22,13 @@ pnpm db:migrate
 pnpm dev
 ```
 
+The CLI uses the same API through Device Authorization. On macOS it stores the bearer token in Keychain; other platforms use an owner-only `0600` file under the user config directory.
+
+```bash
+pnpm --filter @repo/cli exec tsx src/main.ts login
+pnpm --filter @repo/cli exec tsx src/main.ts projects list
+```
+
 Validate the same contracts CI enforces:
 
 ```bash
