@@ -1,6 +1,6 @@
 # Effect Agent Template Design
 
-**Status:** Approved direction, pending written-spec review
+**Status:** Approved for implementation
 
 **Date:** 2026-07-16
 
@@ -30,6 +30,8 @@ tasks, conversations, agent runs, tools, approvals, and artifacts.
 - Include an AI package that demonstrates current AI API best practices through
   Effect, with OpenAI Responses as the first production adapter.
 - Include both a reusable worker package and a runnable worker application.
+- Ship production-shaped container images, a complete local Docker Compose
+  environment, a reusable Helm chart, and an Amazon EKS deployment reference.
 - Demonstrate brokered sandbox credentials so agents can use external services
   without possessing or observing the real secrets.
 - Keep provider SDK types and infrastructure details behind repository-owned
@@ -47,8 +49,7 @@ tasks, conversations, agent runs, tools, approvals, and artifacts.
 - A generic abstraction for every implementation detail.
 - A production auth vendor integration. The template defines the identity
   boundary and supplies a local-development implementation.
-- Product-specific billing, analytics dashboards, or deployment-provider
-  configuration.
+- Product-specific billing or analytics dashboards.
 
 ## Approaches Considered
 
@@ -582,6 +583,16 @@ adapter, so no API key is required. Setting `AI_PROVIDER=openai` and
 `OPENAI_API_KEY` selects the live adapter. Setup, migration, development, test,
 and guardrail commands are available from the repository root.
 
+Docker Compose runs Postgres, migrations, server, worker, and web with health
+checks and persistent database storage. The same application images are used by
+the Helm chart. The chart supports separate server and worker scaling, ingress,
+autoscaling, disruption budgets, network policies, externally managed secrets,
+and EKS Pod Identity annotations. It does not provision an EKS cluster or a
+production Postgres service; documented Terraform/eksctl-neutral prerequisites
+keep infrastructure ownership explicit. OpenSandbox may run beside the chart
+through its upstream Kubernetes controller, while this chart configures the
+application's adapter endpoint and credentials.
+
 ## OpenCode Reference Decisions
 
 The design was checked against the public OpenCode repository at commit
@@ -639,9 +650,9 @@ template, and its public types do not become template contracts.
 
 ## Implementation Order
 
-This master design is delivered as seven separately reviewable implementation
-plans. Each plan must leave the repository installable and its completed slice
-green; later plans consume only committed public interfaces from earlier ones.
+This master design is delivered as eight milestone commits. Each milestone must
+leave its completed slice green; later milestones consume only committed public
+interfaces from earlier ones.
 
 1. Repository skeleton, toolchain, Effect truth chain, and guardrail harness.
 2. Contracts, configuration, observability, database, and generic CRUD.
@@ -651,3 +662,5 @@ green; later plans consume only committed public interfaces from earlier ones.
 6. Web state architecture and shadcn/Base UI conversation interface.
 7. Sandbox boundary, secret resolver, OpenSandbox Credential Vault adapter,
    end-to-end fake flow, documentation, and final hardening.
+8. Container images, complete local Docker Compose, Helm chart, EKS reference,
+   deployment validation, and template release documentation.
