@@ -1,0 +1,14 @@
+{
+  "name": "@repo/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "effect-agent": "./src/main.ts"
+  },
+  "dependencies": {
+    "@repo/auth": "workspace:*",
+    "@repo/client": "workspace:*",
+    "effect": "catalog:"
+  }
+}
