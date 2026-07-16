@@ -88,13 +88,13 @@ export interface ClientTransport {
 }
 ```
 
-- [ ] Add failing tests for browser-cookie and signed-bearer principal resolution, device-code expiry/denial/slow-down, registered CLI client validation, and cross-user access.
-- [ ] Install Better Auth and configure email/password local auth, Device Authorization, and bearer signature verification through `packages/auth`.
-- [ ] Add failing shared-client contract tests that run the same project/session calls with cookie and bearer transports.
-- [ ] Implement fetch-based Effect transport, resumable SSE parsing, auth injection, and Promise/`AsyncIterable` delegates without React or Node imports.
-- [ ] Implement CLI device login and keychain-backed token storage behind an injectable `AuthTokenStore`; tests use memory storage.
-- [ ] Run `pnpm vitest run packages/auth packages/client apps/cli` and `pnpm typecheck`.
-- [ ] Commit with `feat: add Better Auth and shared client SDK`.
+- [x] Add failing tests for browser-cookie and signed-bearer principal resolution, device-code expiry/denial/slow-down, registered CLI client validation, and cross-user access.
+- [x] Install Better Auth and configure email/password local auth, Device Authorization, and bearer signature verification through `packages/auth`.
+- [x] Add failing shared-client contract tests that run the same project/session calls with cookie and bearer transports.
+- [x] Implement fetch-based Effect transport, resumable SSE parsing, auth injection, and Promise/`AsyncIterable` delegates without React or Node imports.
+- [x] Implement CLI device login and keychain-backed token storage behind an injectable `AuthTokenStore`; tests use memory storage.
+- [x] Run `pnpm vitest run packages/auth packages/client apps/cli` and `pnpm typecheck`.
+- [x] Commit with `feat: add Better Auth and shared client SDK`.
 
 ### Task 4: Direct AI examples and provider-neutral agent runtime
 
@@ -130,12 +130,12 @@ export interface AgentRuntime {
 }
 ```
 
-- [ ] Write failing `AgentRuntime` contract tests for deterministic events, approval pause/resume, cancellation, failure, and cleanup.
-- [ ] Implement `AgentRuntimeTest` and make the shared contract pass without network access.
-- [ ] Write failing direct-AI tests for schema-decoded streaming, structured output, strict tools, safe errors, interruption, and retry classification.
-- [ ] Implement the fake and OpenAI Responses adapters with recorded fixtures and no provider types in exports.
-- [ ] Run focused tests, architecture checks, and typecheck.
-- [ ] Commit with `feat: add Effect AI and agent runtime contracts`.
+- [x] Write failing `AgentRuntime` contract tests for deterministic events, approval pause/resume, cancellation, failure, and cleanup.
+- [x] Implement `AgentRuntimeTest` and make the shared contract pass without network access.
+- [x] Write failing direct-AI tests for schema-decoded streaming, structured output, strict tools, safe errors, interruption, and retry classification.
+- [x] Implement the fake and OpenAI Responses adapters with recorded fixtures and no provider types in exports.
+- [x] Run focused tests, architecture checks, and typecheck.
+- [x] Commit with `feat: add Effect AI and agent runtime contracts`.
 
 ### Task 5: Queue, worker, and exclusive session leases
 
