@@ -2,190 +2,247 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a runnable, production-shaped GitHub template that teaches an opinionated Effect 4 architecture through a complete AI agent project/task application.
+**Goal:** Deliver a complete off-the-shelf GitHub template whose project/task agent example proves an opinionated Effect 4 architecture from browser and CLI through Better Auth, Postgres, workers, one OpenCode sandbox per session, secure credentials, Docker Compose, Helm, and EKS.
 
-**Architecture:** A pnpm monorepo separates public Effect capabilities from provider implementations. A Vite React client talks to an Effect HTTP server, a Postgres-backed worker executes durable agent jobs, and a provider-neutral sandbox boundary can use a deterministic local implementation or OpenSandbox. Docker Compose proves the local system and a Helm chart deploys the same images to Kubernetes/EKS.
+**Architecture:** A public Effect HTTP gateway and narrow credential broker serve a transport-neutral SDK used by a React browser app and an Effect CLI. Durable application state lives in Postgres; workers lease one exclusive OpenSandbox workspace per agent session and drive a pinned private `opencode serve` process through `@opencode-ai/sdk`. OpenCode owns the model/tool loop while repository-owned schemas, authorization, approvals, audit events, and secret references remain authoritative.
 
-**Tech Stack:** Node 26, pnpm 10, TypeScript, Effect `4.0.0-beta.98`, Effect Schema, Effect SQL/Postgres, Vite, React 19, TanStack Query, XState, Tailwind 4, shadcn/Base UI, Vitest, Playwright, Docker Compose, Helm 3, Kubernetes/EKS.
+**Tech Stack:** Node 26, pnpm 10, TypeScript 7, Effect `4.0.0-beta.98`, Effect Schema/HTTP/SQL, Postgres, Better Auth, OpenCode CLI and SDK, OpenSandbox Credential Vault, AWS Secrets Manager/KMS, React 19, TanStack Query, XState, Tailwind 4, shadcn/Base UI, Vitest, Playwright, Docker Compose, Helm 3, Kubernetes/EKS.
 
 ## Global Constraints
 
-- Use Effect `4.0.0-beta.98` and derive all Effect package versions from one pnpm catalog.
-- Public package APIs contain no provider SDK, Postgres driver, OpenSandbox SDK, or Base UI types.
-- Decode all transport, database, queue, AI, and sandbox data with Effect Schema.
-- Keep raw secrets out of models, events, logs, errors, command arguments, sandbox files, and snapshots.
-- Default local operation uses fake AI and fake sandbox implementations without API keys.
-- Every behavioral slice follows red-green-refactor; configuration and generated component source are verified by their consuming slice.
-- Commit each completed task to `main` after its focused checks pass.
+- Use Effect `4.0.0-beta.98`; installed declarations and source are the Effect API authority.
+- Pin the OpenCode CLI and `@opencode-ai/sdk` to the same exact release.
+- Decode all transport, database, queue, OpenCode, sandbox, and secret metadata with Effect Schema.
+- Public package exports contain no OpenCode, OpenAI, Postgres driver, Better Auth, OpenSandbox, AWS SDK, or Base UI types.
+- The public server never proxies arbitrary OpenCode routes and no public client addresses OpenCode directly.
+- One `AgentSession` owns one exclusive sandbox, OpenCode process, data directory, server password, network policy, and Credential Vault state.
+- Better Auth cookies authenticate the browser; Better Auth Device Authorization plus signed bearer tokens authenticate the CLI.
+- The public SDK does not expose organization selection. The server derives one configured default `TenantId` and the authenticated user.
+- Credentials are personal, write-only, referenced by `CredentialId`, and absent from logs, traces, errors, commands, files, snapshots, and application rows.
+- The default local path uses deterministic runtime, sandbox, and secret adapters without paid keys.
+- Each milestone follows focused red-green-refactor checks and is committed directly to `main`.
 
 ---
 
-### Task 1: Repository foundation and executable guardrails
+### Task 1: Foundation and guardrails — complete
+
+**Files:** root manifests, `scripts/*`, `.agents/skills/effect/**`, `examples/effect-recipes/**`, `packages/testing/**`.
+
+**Produces:** Node 26/pnpm workspace, exact Effect catalog, architecture checks, recipes, and root `guardrails`.
+
+- [x] Establish the repository, Effect truth chain, instructions, guardrails, recipes, and CI-ready root commands.
+- [x] Verify `pnpm guardrails` and commit `c2b1b07`.
+
+### Task 2: Contracts, Postgres, and generic application services
 
 **Files:**
 
-- Create: `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`, `turbo.json`
-- Create: `.gitignore`, `.env.example`, `.node-version`, `.npmrc`, `AGENTS.md`, `CONTRIBUTING.md`, `LICENSE`
-- Create: `scripts/guardrails.ts`, `scripts/effect-reference-sync.ts`, `scripts/check-architecture.ts`
-- Create: `.agents/skills/effect/SKILL.md`, `.agents/skills/effect/references/*.md`
-- Create: `examples/effect-recipes/src/*.ts`, `examples/effect-recipes/test/recipes.test.ts`
-- Test: `packages/testing/test/guardrails.test.ts`
+- Modify: `packages/contracts/src/{ids,project,task,conversation,agent-run,index}.ts`
+- Create: `packages/contracts/src/{agent-session,approval,artifact,credential,job,http,event}.ts`
+- Modify: `packages/core/src/{project-service,task-service,live,index}.ts`
+- Create: `packages/core/src/{conversation-service,agent-session-service,agent-run-service,credential-service}.ts`
+- Modify: `packages/db/migrations/0001_initial.sql`, `packages/db/src/{live,index}.ts`
+- Test: `packages/contracts/test/models.test.ts`, `packages/core/test/*.test.ts`, `packages/db/test/postgres.integration.test.ts`
 
 **Interfaces:**
 
-- Produces root commands `dev`, `build`, `test`, `typecheck`, `lint`, `guardrails`, `effect:reference:sync`, `db:migrate`, `compose:up`, and `compose:down`.
-- Produces the package rule: only declared package exports may cross package boundaries.
+- Produces branded IDs including `UserId`, `TenantId`, `AgentSessionId`, `ApprovalRequestId`, `CredentialId`, and `JobId`.
+- Produces `AgentSessionService.create`, `AgentRunService.admit`, and `CredentialService.beginUpload` with repository-owned schemas.
+- Produces transactionally atomic run-command, first-event, and job admission.
 
-- [ ] Write a guardrail test that fails because required scripts, agent guidance, and the Effect version catalog do not exist.
-- [ ] Run `pnpm vitest run packages/testing/test/guardrails.test.ts` and confirm the missing-contract failure.
-- [ ] Add workspace manifests, exact dependency catalog, agent routing, Effect source sync, compile-tested recipes, and architecture script.
-- [ ] Run the focused test, `pnpm typecheck`, and `pnpm guardrails`; confirm foundation checks pass.
-- [ ] Commit with `chore: establish Effect 4 template foundation`.
+- [ ] Add failing schema tests proving branded ID rejection, personal credential ownership, valid session transitions, monotonic event sequences, and invalid task transitions.
+- [ ] Run `pnpm vitest run packages/contracts/test packages/core/test` and confirm missing session/credential exports.
+- [ ] Implement the schema and pure transition modules with `Schema.TaggedError` failures.
+- [ ] Add failing Postgres tests for CRUD, cross-user rejection, upload-token single use, command idempotency, event/job atomicity, and concurrent queue claims.
+- [ ] Implement explicit SQL projections and transactions in `packages/db/src/live.ts`; decode every returned row.
+- [ ] Run unit tests, `docker compose up -d postgres`, `RUN_POSTGRES_TESTS=1 pnpm vitest run packages/db/test`, and `pnpm typecheck`.
+- [ ] Commit only this slice with `feat: add typed application persistence`.
 
-### Task 2: Contracts, configuration, observability, database, and CRUD
+### Task 3: Better Auth and the transport-neutral client SDK
 
 **Files:**
 
-- Create: `packages/contracts/src/{ids,project,task,conversation,agent-run,http}.ts`
-- Create: `packages/config/src/{service,live,test}.ts`
-- Create: `packages/observability/src/{service,live,test}.ts`
-- Create: `packages/db/src/{service,live,test,migrate}.ts`, `packages/db/migrations/0001_initial.sql`
-- Create: `packages/core/src/{project-service,task-service,conversation-service,agent-run-service}.ts`
-- Test: `packages/contracts/test/*.test.ts`, `packages/core/test/*.test.ts`, `packages/db/test/*.integration.test.ts`
+- Create: `packages/auth/src/{principal,service,server,browser,device,live,test,index}.ts`
+- Create: `packages/client/src/{client,transport,auth,sse,promise,index}.ts`
+- Create: `packages/client-react/src/{query-keys,options,index}.ts`
+- Create: `apps/cli/src/{main,auth-store,commands/login}.ts`
+- Create: `apps/server/src/auth-route.ts`
+- Test: `packages/auth/test/*.test.ts`, `packages/client/test/*.test.ts`, `apps/cli/test/*.test.ts`
 
 **Interfaces:**
 
-- Produces branded `ProjectId`, `TaskId`, `ConversationId`, `AgentRunId`, `CommandId`, and `JobId` schemas.
-- Produces `ProjectService`, `TaskService`, `ConversationService`, and `AgentRunService` as `Context.Service` capabilities.
-- Produces transaction/query/migration entrypoints; SQL remains internal to live use-case layers.
+```ts
+export interface AuthenticationService {
+  readonly authenticate: (
+    headers: Headers,
+  ) => Effect.Effect<Principal, AuthenticationError>;
+}
 
-- [ ] Write schema and state-transition tests for CRUD, invalid task transitions, idempotent commands, and monotonic run events; run and observe missing exports.
-- [ ] Implement public schemas and pure transitions, then make unit tests pass.
-- [ ] Write Postgres integration tests for migration, CRUD, rollback, command idempotency, event/job atomicity, and concurrent claims; confirm the live layer is missing.
-- [ ] Implement Effect SQL/Postgres layers and use-case queries with explicit projections and decoded rows.
-- [ ] Run unit tests always and integration tests against Compose Postgres; commit with `feat: add typed domain and Postgres persistence`.
+export interface ClientTransport {
+  readonly execute: <A, I, E>(
+    request: ApiRequest<A, I, E>,
+  ) => Effect.Effect<A, E>;
+  readonly events: (
+    request: EventRequest,
+  ) => Stream.Stream<AgentRunEvent, ClientError>;
+}
+```
 
-### Task 3: Provider-neutral AI with fake and OpenAI Responses adapters
+- [ ] Add failing tests for browser-cookie and signed-bearer principal resolution, device-code expiry/denial/slow-down, registered CLI client validation, and cross-user access.
+- [ ] Install Better Auth and configure email/password local auth, Device Authorization, and bearer signature verification through `packages/auth`.
+- [ ] Add failing shared-client contract tests that run the same project/session calls with cookie and bearer transports.
+- [ ] Implement fetch-based Effect transport, resumable SSE parsing, auth injection, and Promise/`AsyncIterable` delegates without React or Node imports.
+- [ ] Implement CLI device login and keychain-backed token storage behind an injectable `AuthTokenStore`; tests use memory storage.
+- [ ] Run `pnpm vitest run packages/auth packages/client apps/cli` and `pnpm typecheck`.
+- [ ] Commit with `feat: add Better Auth and shared client SDK`.
+
+### Task 4: Direct AI examples and provider-neutral agent runtime
 
 **Files:**
 
-- Create: `packages/ai/src/{model,tool,service,fake}.ts`
+- Create: `packages/ai/src/{model,tool,fake,index}.ts`
 - Create: `packages/ai/src/internal/openai/{client,request,event-decoder,error}.ts`
-- Create: `packages/ai/test/{contract,openai-fixtures}.test.ts`, `packages/ai/test/fixtures/*.json`
+- Create: `packages/agent-runtime/src/{model,service,test,index}.ts`
+- Test: `packages/ai/test/*.test.ts`, `packages/agent-runtime/test/*.test.ts`
 
 **Interfaces:**
 
-- Produces `AiModel.stream(request): Stream<AiModelEvent, AiError>` and schema-decoded `AiModel.generateObject`.
-- Produces `AiTool<Input, Output>` with Effect Schema inputs/outputs and Effect handlers.
-- Provider events normalize to response start, text delta, tool call, usage, completion, and failure events.
+```ts
+export interface AgentRuntime {
+  readonly createSession: (
+    input: CreateRuntimeSession,
+  ) => Effect.Effect<RuntimeSessionRef, AgentRuntimeError>;
+  readonly send: (
+    input: SendRuntimeMessage,
+  ) => Effect.Effect<void, AgentRuntimeError>;
+  readonly events: (
+    session: RuntimeSessionRef,
+  ) => Stream.Stream<AgentRuntimeEvent, AgentRuntimeError>;
+  readonly replyPermission: (
+    input: RuntimePermissionReply,
+  ) => Effect.Effect<void, AgentRuntimeError>;
+  readonly cancel: (
+    session: RuntimeSessionRef,
+  ) => Effect.Effect<void, AgentRuntimeError>;
+  readonly close: (
+    session: RuntimeSessionRef,
+  ) => Effect.Effect<void, AgentRuntimeError>;
+}
+```
 
-- [ ] Write adapter contract tests for semantic streaming, strict tools, `call_id`, structured output decoding, interruption, retry classification, and safe errors; confirm missing implementations.
-- [ ] Implement the deterministic fake adapter and make the shared contract green.
-- [ ] Add recorded Responses API fixtures and verify typed event decoding fails before the OpenAI mapper exists.
-- [ ] Implement the OpenAI SDK adapter with `store: false`, `text.format`, typed SSE events, bounded retries, request IDs, and no SDK types in exports.
-- [ ] Run AI tests and typecheck; commit with `feat: add Effect AI model adapters`.
+- [ ] Write failing `AgentRuntime` contract tests for deterministic events, approval pause/resume, cancellation, failure, and cleanup.
+- [ ] Implement `AgentRuntimeTest` and make the shared contract pass without network access.
+- [ ] Write failing direct-AI tests for schema-decoded streaming, structured output, strict tools, safe errors, interruption, and retry classification.
+- [ ] Implement the fake and OpenAI Responses adapters with recorded fixtures and no provider types in exports.
+- [ ] Run focused tests, architecture checks, and typecheck.
+- [ ] Commit with `feat: add Effect AI and agent runtime contracts`.
 
-### Task 4: Durable queue, worker runtime, orchestration, and sandboxes
+### Task 5: Queue, worker, and exclusive session leases
 
 **Files:**
 
-- Create: `packages/queue/src/{job,service,postgres}.ts`
-- Create: `packages/worker/src/{registry,runtime,agent-run-handler}.ts`
-- Create: `packages/sandbox/src/{workspace,fake}.ts`
-- Create: `packages/secrets/src/{reference,service,environment,test}.ts`
-- Create: `packages/sandbox-opensandbox/src/{workspace,credential-broker,live}.ts`
-- Create: `apps/worker/src/main.ts`
-- Test: `packages/{queue,worker,sandbox,secrets,sandbox-opensandbox}/test/*.test.ts`
+- Create: `packages/queue/src/{job,service,postgres,index}.ts`
+- Create: `packages/worker/src/{registry,runtime,agent-run-handler,index}.ts`
+- Create: `packages/sandbox/src/{model,workspace,test,index}.ts`
+- Create: `apps/worker/src/{layers,main}.ts`
+- Test: `packages/{queue,worker,sandbox}/test/*.test.ts`
 
-**Interfaces:**
+**Interfaces:** `JobQueue` exposes enqueue/claim/heartbeat/complete/retry/fail; `SandboxWorkspace` exposes create/resume/exec/files/expose/pause/terminate; `WorkerRuntime` owns bounded concurrency and drain.
 
-- Produces `JobQueue.enqueue`, `claim`, `heartbeat`, `complete`, `retry`, and `fail` with leases and caller IDs.
-- Produces `WorkerRuntime.run` with bounded concurrency and graceful shutdown.
-- Produces `SandboxWorkspace.create/exec/readFile/writeFile/expose/terminate` and `SandboxCredentialBroker.install/remove`.
+- [ ] Add failing queue tests for at-least-once claims, lease loss, retry classification, idempotency, and dead-letter outcomes.
+- [ ] Implement Postgres queue operations with `FOR UPDATE SKIP LOCKED` and transactional terminal events.
+- [ ] Add failing worker tests for bounded concurrency, graceful shutdown, cooperative cancellation, and exclusive `AgentSession` leases.
+- [ ] Implement the worker runtime and deterministic sandbox capability.
+- [ ] Assemble `apps/worker` from layers; do not construct clients inside handlers.
+- [ ] Run focused tests, Postgres integration tests, and typecheck.
+- [ ] Commit with `feat: add durable session workers`.
 
-- [ ] Write queue and worker tests for at-least-once execution, lease loss, retries, cancellation, concurrency, and shutdown; confirm missing services.
-- [ ] Implement the Postgres queue and worker runtime, then pass focused tests.
-- [ ] Write sandbox/secret contract tests with canary values and fail-closed bindings; confirm missing adapters.
-- [ ] Implement fake sandbox, scoped/redacted secrets, the OpenSandbox SDK adapter, and Credential Vault broker with default-deny matching.
-- [ ] Assemble the worker app, run focused suites, and commit with `feat: add durable workers and sandbox execution`.
+### Task 6: OpenCode, OpenSandbox, and credential ingestion
 
-### Task 5: Effect HTTP server, resumable SSE, and approval flow
+**Files:**
+
+- Create: `packages/agent-runtime-opencode/src/{config,server,client,event-mapper,permission-mapper,live,index}.ts`
+- Create: `packages/secrets/src/{model,store,upload-token,memory,aws,index}.ts`
+- Create: `packages/sandbox-opensandbox/src/{workspace,credential-broker,network-policy,live,index}.ts`
+- Create: `apps/credential-broker/src/{api,layers,main}.ts`
+- Test: `packages/agent-runtime-opencode/test/*.test.ts`, `packages/secrets/test/*.test.ts`, `packages/sandbox-opensandbox/test/*.test.ts`, `apps/credential-broker/test/*.test.ts`
+
+**Interfaces:** OpenCode adapter implements `AgentRuntime`; broker exposes only single-use secret upload; `SecretStore` returns opaque `SecretRef`; sandbox broker installs exact HTTPS host/method/path bindings.
+
+- [ ] Pin identical OpenCode CLI/SDK versions and add a failing mismatch test.
+- [ ] Add fixture tests for session creation, async prompt, SSE mapping, permissions, cancellation, password authentication, runtime loss, and unsupported event versions.
+- [ ] Implement the OpenCode SDK adapter with all external data decoded before mapping.
+- [ ] Add failing upload tests for expiry, replay, wrong principal, body limits, no-store responses, absent payload telemetry, partial-failure cleanup, and no read-secret route.
+- [ ] Implement signed upload intents, memory/AWS secret stores, and the narrow broker process with write-only production IAM documentation.
+- [ ] Add OpenSandbox contract tests proving one sandbox per session, default-deny egress, exact binding matching, canary redaction, and vault teardown.
+- [ ] Implement OpenSandbox workspace and Credential Vault adapters; never place real credentials in sandbox env/files/commands.
+- [ ] Run focused tests, typecheck, architecture checks, and an OpenCode fixture smoke.
+- [ ] Commit with `feat: add isolated OpenCode session runtime`.
+
+### Task 7: Public server, CLI workflows, and deterministic end-to-end flow
 
 **Files:**
 
 - Create: `apps/server/src/{api,handlers,sse,layers,main}.ts`
-- Test: `apps/server/test/{api,sse,agent-flow}.test.ts`
+- Expand: `apps/cli/src/commands/{projects,tasks,sessions,credentials}.ts`
+- Test: `apps/server/test/*.test.ts`, `apps/cli/test/*.test.ts`, `tests/e2e/template-flow.test.ts`
 
-**Interfaces:**
+**Interfaces:** `/api/v1` exposes project/task CRUD, sessions, runs, approvals, credential-upload intents, cancellation, and cursor-resumable SSE; it never exposes OpenCode URLs or secret values.
 
-- Produces health, project/task CRUD, conversations, run commands, durable run-event SSE, cancellation, and approval endpoints under `/api/v1`.
-- SSE accepts `Last-Event-ID`, replays durable events after that sequence, then follows live events with keepalives.
+- [ ] Write failing Effect HTTP tests for schema errors, auth, resource ownership, CRUD, idempotency, safe errors, and health/readiness.
+- [ ] Implement thin decode-authenticate-authorize-use-case-encode handlers.
+- [ ] Write failing SSE tests for cursor resume, live-only deltas, durable completion, keepalive, disconnect, and authorization.
+- [ ] Implement event replay/follow and cache-safe stream headers.
+- [ ] Implement CLI project/task/session/approval/cancel and hidden-input credential commands entirely through `packages/client`.
+- [ ] Add an end-to-end deterministic test from login through project/task creation, session start, approval, artifact, completion, and reconnect.
+- [ ] Run server/CLI/E2E tests and commit with `feat: expose multi-client agent platform`.
 
-- [ ] Write HTTP tests for schema rejection, CRUD, not-found/conflict encoding, identity context, and health; confirm no server exists.
-- [ ] Implement the Effect HTTP API and handlers as decode-authorize-call-encode orchestration.
-- [ ] Write SSE resume and approval tests, including reconnect without replaying transient deltas; confirm failure.
-- [ ] Implement durable event replay/follow, approval decisions, cancellation, and safe outer-boundary errors.
-- [ ] Run server tests and commit with `feat: expose agent API and resumable events`.
-
-### Task 6: Deliberate agent client with Query, XState, and shadcn/Base UI
+### Task 8: Browser client, design system, Query, and XState
 
 **Files:**
 
 - Create: `apps/web/{index.html,components.json,DESIGN.md}`
 - Create: `apps/web/src/{main,app,styles}.tsx`
-- Create: `apps/web/src/lib/{api,effect-runtime,query-client}.ts`
-- Create: `apps/web/src/features/{projects,tasks,conversation,agent-run}/**/*.{ts,tsx}`
-- Create: `packages/ui/src/components/ui/*.tsx`, `packages/ui/src/components/chat/*.tsx`
+- Create: `apps/web/src/features/{auth,projects,tasks,credentials,conversation,agent-run}/**/*.{ts,tsx}`
+- Create: `packages/ui/src/components/{ui,chat}/*.tsx`
 - Test: `apps/web/src/**/*.test.{ts,tsx}`, `apps/web/e2e/agent-flow.spec.ts`
 
-**Interfaces:**
+**Interfaces:** TanStack Query owns server state; XState owns run/reconnect/approval/cancel workflows; one event projector updates query caches; Base UI imports remain inside `packages/ui`.
 
-- TanStack Query owns server entities; one event projector updates the cache.
-- XState owns only run/reconnect/approval/cancel phases and never duplicates entity data.
-- shadcn first-party chat components use Base UI-compatible generated source.
+- [ ] Write failing query-key, event-projector, machine-transition, and auth-rehydration tests.
+- [ ] Implement `packages/client-react` integration and the browser cookie transport.
+- [ ] Add the complete `DESIGN.md`, Tailwind theme, `@google/design.md` lint, and drift guardrail.
+- [ ] Install only required shadcn/Base UI and first-party chat source components.
+- [ ] Compose responsive login, project/task, credential, conversation, approval, error, loading, and empty states.
+- [ ] Run component tests, design lint, accessibility checks, production build, and mocked browser flow.
+- [ ] Commit with `feat: build agent browser client`.
 
-- [ ] Write tests for API decoding, query keys, event projection, run transitions, and approval recovery; confirm missing modules.
-- [ ] Implement the Effect client runtime, TanStack Query features, and XState machine.
-- [ ] Define the dark operations-notebook design contract: graphite surfaces, signal-blue focus, warm execution states, Geist Sans/Mono, compact two-pane layout, and an event-sequence rail as the signature element.
-- [ ] Generate only required shadcn/Base UI and first-party chat components, then compose responsive project/task/conversation/run screens with accessible empty/error/loading states.
-- [ ] Run component tests, design lint, build, and mocked browser smoke; commit with `feat: build agent operations client`.
-
-### Task 7: Full local runtime and end-to-end example
+### Task 9: Docker Compose, Helm/EKS, CI, and template release
 
 **Files:**
 
-- Create: `Dockerfile`, `compose.yaml`, `.dockerignore`
-- Create: `scripts/{wait-for-health,seed-demo}.ts`
-- Create: `docs/{getting-started,architecture,patterns,testing}/**/*.md`
-- Test: `tests/e2e/template-flow.spec.ts`
-
-**Interfaces:**
-
-- `docker compose up --build` starts healthy Postgres, migration, server, worker, and web services.
-- The fake agent creates a proposed artifact, pauses for approval, uses the fake sandbox, then completes the linked task.
-
-- [ ] Write the end-to-end test for project creation through completed approved run and observe connection failure before Compose exists.
-- [ ] Add multi-stage non-root images, health checks, dependency conditions, persistent Postgres, migration job, and documented environment overrides.
-- [ ] Implement deterministic seed/demo behavior and make the end-to-end test pass against Compose.
-- [ ] Run `docker compose config`, image builds, health checks, and the browser flow; commit with `feat: add complete local container runtime`.
-
-### Task 8: Helm, EKS, CI, and template release
-
-**Files:**
-
-- Create: `deploy/charts/effect-agent/{Chart.yaml,values.yaml,values.schema.json,templates/*}`
+- Create: `Dockerfile`, `.dockerignore`, complete `compose.yaml`, `scripts/{wait-for-health,seed-demo,check-template}.ts`
+- Create: `deploy/charts/effect-agent/{Chart.yaml,values.yaml,values.schema.json,templates/**}`
 - Create: `deploy/eks/{README.md,values.example.yaml,pod-identity-policy.example.json}`
 - Create: `.github/workflows/{ci,images,helm}.yml`, `.github/dependabot.yml`
-- Create: `README.md`, `SECURITY.md`, `docs/template-adoption.md`
-- Test: `scripts/check-template.ts`
+- Create: `README.md`, `SECURITY.md`, `docs/{getting-started,architecture,patterns,testing,template-adoption}/**/*.md`
+- Test: `tests/e2e/compose-flow.spec.ts`, chart assertions in `scripts/check-template.ts`
 
-**Interfaces:**
+**Interfaces:** `docker compose up --build` starts Postgres, migration, Better Auth server, credential broker, worker, and web; Helm deploys separate workloads/service accounts with ingress, probes, resources, autoscaling, disruption budgets, network policies, external secrets, and EKS Pod Identity.
 
-- The chart deploys server, worker, and web separately with migrations, probes, resources, autoscaling, disruption budgets, ingress, network policies, and external Secret references.
-- EKS guidance uses EKS Pod Identity, one service account/role per workload, managed Postgres, ECR images, and the upstream OpenSandbox controller chart.
+- [ ] Add a failing Compose smoke test and chart assertions before images/manifests exist.
+- [ ] Implement non-root multi-stage images, health checks, migration gating, persistent Postgres, deterministic demo seeding, and safe local auth.
+- [ ] Implement the Helm chart with separate server/broker/worker IAM boundaries and OpenSandbox controller integration guidance.
+- [ ] Add CI for guardrails, Postgres tests, Compose smoke, image build, Helm lint/template, and domain-leak checks.
+- [ ] Write off-the-shelf setup, architecture, security, credential, OpenCode, local/live sandbox, EKS, adoption, and extension documentation.
+- [ ] Run `pnpm guardrails`, Compose E2E, image builds, `helm lint`, `helm template`, and `pnpm tsx scripts/check-template.ts`.
+- [ ] Confirm the dirty tree contains only intended template files and commit with `docs: finalize deployable Effect agent template`.
 
-- [ ] Write chart assertions for workloads, probes, non-root security, secret-free values, and separate service accounts; confirm the chart is absent.
-- [ ] Implement the chart and validate with `helm lint`, `helm template`, and schema checks.
-- [ ] Add EKS prerequisites and install/upgrade/rollback instructions, including OpenSandbox controller deployment and explicit production gaps.
-- [ ] Add CI for guardrails, Compose smoke, image build, and Helm validation; add template adoption and security documentation.
-- [ ] Run `pnpm guardrails`, Compose end-to-end, `helm lint`, `helm template`, and a domain-leak scan; commit with `docs: finalize deployable GitHub template`.
+## Completion Proof
+
+- [ ] A clean clone passes install, migration, guardrails, build, and deterministic E2E from documented root commands.
+- [ ] Browser and CLI authenticate with Better Auth and execute the same SDK contract.
+- [ ] Live mode proves a password-protected OpenCode server inside one exclusive sandbox per session.
+- [ ] Canary credentials reach only their exact mock upstream binding and never appear in application or sandbox-visible surfaces.
+- [ ] Docker Compose and rendered Helm resources are healthy and contain no plaintext secrets.
+- [ ] README starts from zero context and reaches a completed agent run without undocumented steps.
