@@ -58,11 +58,44 @@ importers:
       "@repo/client":
         specifier: workspace:*
         version: link:../../packages/client
+      "@repo/contracts":
+        specifier: workspace:*
+        version: link:../../packages/contracts
       effect:
         specifier: "catalog:"
         version: 4.0.0-beta.98
+      ulid:
+        specifier: ^3.0.1
+        version: 3.0.2
 
   apps/credential-broker:
+    dependencies:
+      "@repo/auth":
+        specifier: workspace:*
+        version: link:../../packages/auth
+      "@repo/config":
+        specifier: workspace:*
+        version: link:../../packages/config
+      "@repo/contracts":
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      "@repo/core":
+        specifier: workspace:*
+        version: link:../../packages/core
+      "@repo/db":
+        specifier: workspace:*
+        version: link:../../packages/db
+      "@repo/secrets":
+        specifier: workspace:*
+        version: link:../../packages/secrets
+      effect:
+        specifier: "catalog:"
+        version: 4.0.0-beta.98
+      tsx:
+        specifier: ^4.23.1
+        version: 4.23.1
+
+  apps/server:
     dependencies:
       "@repo/auth":
         specifier: workspace:*

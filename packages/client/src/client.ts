@@ -2,11 +2,21 @@ import {
   AgentRun,
   AgentRunEvent,
   AgentSession,
+  Conversation,
+  Credential,
+  PendingCredentialUpload,
   Project,
+  Task,
   type AgentRunId,
   type AgentSessionId,
   type CommandId,
+  type ConversationId,
+  type CreateConversation,
   type CreateProject,
+  type CredentialProvider,
+  type ProjectId,
+  type TaskId,
+  type TaskStatus,
 } from "@repo/contracts";
 import { Schema } from "effect";
 import type { ClientTransport } from "./transport.js";
@@ -26,8 +36,65 @@ export const createAgentClient = (transport: ClientTransport) => ({
         schema: Project,
         body: input,
       }),
+    get: (projectId: ProjectId) =>
+      transport.execute({
+        method: "GET",
+        path: `/projects/${encodeURIComponent(projectId)}`,
+        schema: Project,
+      }),
+    update: (projectId: ProjectId, input: CreateProject) =>
+      transport.execute({
+        method: "PATCH",
+        path: `/projects/${encodeURIComponent(projectId)}`,
+        schema: Project,
+        body: input,
+      }),
+  },
+  tasks: {
+    list: (projectId: ProjectId) =>
+      transport.execute({
+        method: "GET",
+        path: `/projects/${encodeURIComponent(projectId)}/tasks`,
+        schema: Schema.Array(Task),
+      }),
+    create: (
+      projectId: ProjectId,
+      input: { readonly title: string; readonly description: string | null },
+    ) =>
+      transport.execute({
+        method: "POST",
+        path: `/projects/${encodeURIComponent(projectId)}/tasks`,
+        schema: Task,
+        body: input,
+      }),
+    transition: (taskId: TaskId, status: TaskStatus) =>
+      transport.execute({
+        method: "POST",
+        path: `/tasks/${encodeURIComponent(taskId)}/transition`,
+        schema: Task,
+        body: { status },
+      }),
+  },
+  conversations: {
+    create: (input: CreateConversation) =>
+      transport.execute({
+        method: "POST",
+        path: "/conversations",
+        schema: Conversation,
+        body: input,
+      }),
   },
   sessions: {
+    create: (input: {
+      readonly projectId: ProjectId;
+      readonly conversationId: ConversationId;
+    }) =>
+      transport.execute({
+        method: "POST",
+        path: "/sessions",
+        schema: AgentSession,
+        body: input,
+      }),
     get: (sessionId: AgentSessionId) =>
       transport.execute({
         method: "GET",
@@ -36,12 +103,20 @@ export const createAgentClient = (transport: ClientTransport) => ({
       }),
   },
   runs: {
-    start: (sessionId: AgentSessionId, commandId: CommandId) =>
+    start: (
+      sessionId: AgentSessionId,
+      commandId: CommandId,
+      input: {
+        readonly projectId: ProjectId;
+        readonly conversationId: ConversationId;
+        readonly taskId: TaskId | null;
+      },
+    ) =>
       transport.execute({
         method: "POST",
         path: `/sessions/${encodeURIComponent(sessionId)}/runs`,
         schema: AgentRun,
-        body: {},
+        body: input,
         idempotencyKey: commandId,
       }),
     events: (runId: AgentRunId, after?: number) =>
@@ -49,6 +124,24 @@ export const createAgentClient = (transport: ClientTransport) => ({
         path: `/runs/${encodeURIComponent(runId)}/events`,
         schema: AgentRunEvent,
         ...(after === undefined ? {} : { after }),
+      }),
+  },
+  credentials: {
+    beginUpload: (input: {
+      readonly provider: CredentialProvider;
+      readonly label: string;
+    }) =>
+      transport.execute({
+        method: "POST",
+        path: "/credentials",
+        schema: PendingCredentialUpload,
+        body: input,
+      }),
+    get: (credentialId: Credential["id"]) =>
+      transport.execute({
+        method: "GET",
+        path: `/credentials/${encodeURIComponent(credentialId)}`,
+        schema: Credential,
       }),
   },
 });

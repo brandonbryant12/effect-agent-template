@@ -9,6 +9,8 @@
   "dependencies": {
     "@repo/auth": "workspace:*",
     "@repo/client": "workspace:*",
-    "effect": "catalog:"
+    "@repo/contracts": "workspace:*",
+    "effect": "catalog:",
+    "ulid": "^3.0.1"
   }
 }

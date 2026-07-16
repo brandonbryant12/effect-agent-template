@@ -52,3 +52,9 @@ export const Conversation = Schema.Struct({
   updatedAt: Timestamp,
 });
 export type Conversation = typeof Conversation.Type;
+
+export const CreateConversation = Schema.Struct({
+  projectId: ProjectId,
+  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(120)),
+});
+export type CreateConversation = typeof CreateConversation.Type;

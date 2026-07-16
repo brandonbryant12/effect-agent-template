@@ -2,6 +2,7 @@ export * from "./live.js";
 export * from "./agent-session-service.js";
 export * from "./credential-service.js";
 export * from "./credential-secret-service.js";
+export * from "./conversation-service.js";
 export * from "./project-service.js";
 export * from "./task-service.js";
 export * from "./task-transition.js";
