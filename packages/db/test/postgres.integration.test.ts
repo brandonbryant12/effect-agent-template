@@ -57,12 +57,17 @@ integration("Postgres capabilities", () => {
       const completed = yield* tasks
         .transition(scope, task.id, "in-progress")
         .pipe(Effect.flatMap(() => tasks.transition(scope, task.id, "done")));
-      return { project: yield* projects.get(scope, project.id), completed };
+      return {
+        project: yield* projects.get(scope, project.id),
+        completed,
+        listed: yield* tasks.listByProject(scope, project.id),
+      };
     });
 
     const result = await Effect.runPromise(Effect.provide(program, Services));
     expect(result.project.name).toBe("Database example");
     expect(result.completed.status).toBe("done");
+    expect(result.listed.map((task) => task.id)).toContain(result.completed.id);
   });
 
   it("migrates user-scoped sessions and write-only credential metadata", async () => {

@@ -23,6 +23,7 @@ const auth = createBetterAuthRuntime({
   secret: Redacted.value(config.betterAuthSecret),
   cliClientId: "effect-agent-cli",
   defaultTenantId: "tenant_00000000000000000000000000",
+  trustedOrigins: [config.webOrigin],
 });
 const secretStore =
   config.secretStoreProvider === "aws"

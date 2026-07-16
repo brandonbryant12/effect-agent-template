@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.ts"
   },
   "dependencies": {
     "@repo/contracts": "workspace:*",
@@ -14,6 +15,10 @@
     "ulid": "^3.0.1"
   },
   "devDependencies": {
+    "@types/react": "^19.2.0",
     "@types/pg": "^8.15.6"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
   }
 }

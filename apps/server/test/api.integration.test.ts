@@ -34,6 +34,7 @@ integration("public server API", () => {
       secret: "test-secret-that-is-at-least-thirty-two-characters",
       cliClientId: "effect-agent-cli",
       defaultTenantId: "tenant_00000000000000000000000000",
+      trustedOrigins: ["http://localhost:5173"],
     });
     const Postgres = PostgresLive(databaseUrl ?? "");
     const Domain = Layer.provide(
@@ -75,7 +76,10 @@ integration("public server API", () => {
         auth.handler(
           new Request("http://localhost:3000/api/auth/sign-up/email", {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              "content-type": "application/json",
+              origin: "http://localhost:5173",
+            },
             body: JSON.stringify({
               name: "API User",
               email: `api-${crypto.randomUUID()}@example.com`,

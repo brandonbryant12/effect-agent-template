@@ -13,6 +13,7 @@ export interface BetterAuthRuntimeOptions {
   readonly secret: string;
   readonly cliClientId: string;
   readonly defaultTenantId: string;
+  readonly trustedOrigins?: ReadonlyArray<string>;
 }
 
 export interface BetterAuthRuntime {
@@ -40,6 +41,7 @@ export const createBetterAuthRuntime = (
     database: pool,
     baseURL: options.baseURL,
     secret: options.secret,
+    trustedOrigins: [...(options.trustedOrigins ?? [])],
     emailAndPassword: {
       enabled: true,
       autoSignIn: true,

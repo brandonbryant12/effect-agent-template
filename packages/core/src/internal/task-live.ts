@@ -84,7 +84,7 @@ export const TaskServiceLive = Layer.effect(
             WHERE tasks.project_id = ${projectId}
               AND projects.tenant_id = ${scope.tenantId}
               AND projects.owner_user_id = ${scope.userId}
-            ORDER BY created_at ASC, id ASC
+            ORDER BY tasks.created_at ASC, tasks.id ASC
           `,
         ).pipe(Effect.flatMap(Effect.forEach(decodeTaskRow))),
       transition: (scope, id, status) =>
