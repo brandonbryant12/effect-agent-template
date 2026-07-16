@@ -1,0 +1,15 @@
+{
+  "name": "@repo/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./task-transition": "./src/task-transition.ts"
+  },
+  "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "effect": "catalog:",
+    "ulid": "^3.0.1"
+  }
+}

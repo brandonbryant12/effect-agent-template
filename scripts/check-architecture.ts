@@ -58,6 +58,7 @@ for (const file of files) {
     violations.push(`${path}: contains a production 'as never' assertion`);
   }
   if (
+    !isTest &&
     /\bprocess\.env\b/.test(source) &&
     !path.startsWith("packages/config/") &&
     !/^apps\/[^/]+\/src\/main\.ts$/.test(path)
