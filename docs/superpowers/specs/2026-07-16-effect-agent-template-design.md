@@ -1,6 +1,6 @@
 # Effect Agent Template Design
 
-**Status:** Approved for implementation
+**Status:** Approved architecture; revised implementation handoff
 
 **Date:** 2026-07-16
 
@@ -10,7 +10,8 @@ Build a public GitHub template for an AI-agent product using Effect 4 as the
 application foundation. The repository is an opinionated production starter
 and a readable framework kit: a useful application runs immediately, while
 each subsystem also demonstrates the preferred way to model contracts, access
-Postgres, call AI APIs, execute background work, stream agent events, manage
+Postgres, authenticate browser and CLI clients, call AI APIs, execute background
+work through OpenCode in isolated sandboxes, stream agent events, manage
 frontend state, and protect architectural boundaries.
 
 The template must contain no concepts inherited from either source product. Its
@@ -28,7 +29,13 @@ tasks, conversations, agent runs, tools, approvals, and artifacts.
 - Demonstrate complete CRUD, transactional writes, cached reads, streaming,
   jobs, retries, cancellation, and failure recovery.
 - Include an AI package that demonstrates current AI API best practices through
-  Effect, with OpenAI Responses as the first production adapter.
+  Effect, with OpenAI Responses as the direct-API reference adapter.
+- Use OpenCode's headless server and official SDK as the default agent runtime
+  instead of implementing a second model/tool/session harness.
+- Ship one transport-neutral client SDK used by both a browser application and
+  a terminal CLI.
+- Use Better Auth for browser sessions, CLI device authorization, and bearer
+  authentication at the public API boundary.
 - Include both a reusable worker package and a runnable worker application.
 - Ship production-shaped container images, a complete local Docker Compose
   environment, a reusable Helm chart, and an Amazon EKS deployment reference.
@@ -47,8 +54,9 @@ tasks, conversations, agent runs, tools, approvals, and artifacts.
 - Multiple production AI, database, queue, or sandbox adapters in the first
   release.
 - A generic abstraction for every implementation detail.
-- A production auth vendor integration. The template defines the identity
-  boundary and supplies a local-development implementation.
+- Organization management, organization selection, or organization-owned
+  credentials in the first release. The server retains one internal default
+  tenant identifier without exposing it in the client API.
 - Product-specific billing or analytics dashboards.
 
 ## Approaches Considered
@@ -72,15 +80,31 @@ packages behind it. Every package has a small public surface, internal
 implementation directory, contract tests, and a focused recipe. This provides
 real evidence without turning the template into a disguised existing product.
 
+For agent execution, three runtime approaches were evaluated inside this
+starter: a custom model/tool loop, parsing `opencode run` terminal output, and a
+private `opencode serve` process controlled through the official SDK. The
+server/SDK approach is selected because it provides structured sessions,
+messages, event streaming, permissions, cancellation, compaction, and provider
+support without making terminal output an application protocol. A
+repository-owned Effect interface prevents OpenCode from becoming the public
+application contract.
+
 ## Repository Shape
 
 ```text
 apps/
   web/                 AI-agent client
-  server/              HTTP API, event stream, and agent orchestration
+  cli/                 Terminal client using the same public SDK
+  server/              Multi-client HTTP API, auth, and event stream
+  credential-broker/   Narrow write-only secret ingestion process
   worker/              Durable job execution process
 packages/
-  ai/                   Provider-neutral AI capabilities and OpenAI adapter
+  ai/                   Direct-AI Effect recipes and OpenAI Responses adapter
+  agent-runtime/        Provider-neutral agent session capability
+  agent-runtime-opencode/ OpenCode server/SDK production adapter
+  auth/                 Better Auth server, browser, CLI, and Principal boundary
+  client/               Transport-neutral Effect SDK and Promise facade
+  client-react/         TanStack Query options and React-specific bindings
   contracts/            Cross-process Effect Schemas and HTTP/event contracts
   core/                 Projects, tasks, conversations, and agent-run use cases
   db/                   Postgres client, migrations, and internal repositories
@@ -166,6 +190,8 @@ The example product contains these generic records:
 - `Project`: owns context, conversations, tasks, and artifacts.
 - `Task`: a user- or agent-created unit of work with an explicit lifecycle.
 - `Conversation`: an ordered set of user, assistant, tool, and system entries.
+- `AgentSession`: one authenticated, isolated runtime context that maps to one
+  sandbox and one OpenCode session for its lifetime.
 - `Message`: a stable envelope for one conversation turn.
 - `MessagePart`: typed text, reasoning summary, attachment, tool call, tool
   result, or status content belonging to a message.
@@ -183,8 +209,8 @@ with Effect Schema. State transitions are pure functions and reject invalid
 transitions with narrow tagged errors.
 
 The starter demonstrates project and task CRUD, starting/cancelling an agent
-run, streaming its events, approving a tool, and observing a worker-owned task
-reach a terminal state.
+session and run, streaming its events, approving a tool, and observing a
+worker-owned task reach a terminal state.
 
 Messages and parts are separate because a turn is not merely text. Tool calls,
 attachments, bounded reasoning summaries, and completion metadata need stable
@@ -220,8 +246,9 @@ require Docker.
 
 ## AI Package
 
-`packages/ai` is a first-class teaching package, not a thin SDK re-export. Its
-public surface is provider-neutral and uses repository-owned schemas:
+`packages/ai` is a first-class direct-API teaching package, not the default
+agent orchestrator and not a thin SDK re-export. Its public surface is
+provider-neutral and uses repository-owned schemas:
 
 - `AiModel.stream(request)` returns a scoped Effect stream of normalized
   `AiModelEvent` values.
@@ -257,13 +284,54 @@ The OpenAI adapter uses the Responses API and remains under
 - live tests behind an explicit environment flag so ordinary CI never spends
   tokens.
 
-No OpenAI SDK type crosses the package boundary. The server and worker consume
-`AiModel`; the web client consumes only `AgentRunEvent` contracts.
+No OpenAI SDK type crosses the package boundary. Focused examples and opt-in
+applications may consume `AiModel`; the default worker consumes
+`AgentRuntime`. Browser and CLI clients consume only repository-owned session,
+run, and event contracts.
 
 The adapter is grounded in the current official Responses guidance for
 [streaming](https://developers.openai.com/api/docs/guides/streaming-responses),
 [tools](https://developers.openai.com/api/docs/guides/tools), and
 [conversation/tool migration semantics](https://developers.openai.com/api/docs/guides/migrate-to-responses).
+
+## OpenCode Agent Runtime
+
+`packages/agent-runtime` defines the stable Effect capability used by the
+worker. Its public operations create or resume a session, submit a prompt,
+stream normalized events, answer a permission request, cancel active work, and
+close the runtime. It exposes repository-owned schemas and tagged errors only.
+
+`packages/agent-runtime-opencode` is the production implementation. For each
+application `AgentSession`, the worker creates or resumes exactly one
+OpenSandbox workspace, launches one password-protected `opencode serve`
+process inside it, and controls it with the pinned `@opencode-ai/sdk`. The CLI
+and SDK versions are identical and exact. The OpenCode server binds privately
+and is reachable only through the assigned worker/control-plane connection;
+neither public client can address it.
+
+OpenCode owns provider integration, the model/tool loop, context compaction,
+runtime messages and parts, tool execution, and its internal SQLite session
+state. Postgres remains authoritative for users, projects, tasks, admitted run
+commands, approvals, audit history, sandbox leases, and the normalized
+UI-facing event projection. The adapter consumes OpenCode's event stream and
+decodes and maps every event at the boundary before it becomes an
+`AgentRunEvent`.
+
+The sandbox is the security and lifecycle boundary, not the OpenCode session
+ID. Sandboxes are never shared between application sessions or users. A
+session sandbox may be paused and resumed for continuity, but its filesystem,
+OpenCode data directory, server password, service account, network policy, and
+Credential Vault state remain exclusive to that session. Termination destroys
+the runtime and its live vault bindings; durable application history remains
+in Postgres.
+
+OpenCode permission requests are projected into durable `ApprovalRequest`
+records. A client decision is authorized and recorded by the application
+server, then the worker translates it to OpenCode's `once`, `always`, or
+`reject` permission reply. The template does not operate a second independent
+tool loop or parse `opencode run` output. A deterministic `AgentRuntimeTest`
+implements the same contracts without starting OpenCode, a sandbox, or a paid
+model.
 
 ## Agent Execution and Event Protocol
 
@@ -272,10 +340,10 @@ Starting a run follows this sequence:
 1. The server validates the command with Effect Schema.
 2. A transaction admits an idempotent run command, creates the run, appends its
    first event, and enqueues a job.
-3. The worker claims the job and executes the agent program.
-4. The AI adapter emits normalized model events.
-5. The orchestrator executes read-only tools immediately and persists approval
-   requests before side-effecting tools.
+3. The worker claims the job and acquires the run's exclusive session sandbox.
+4. The OpenCode runtime adapter submits the prompt and maps its event stream.
+5. OpenCode executes permitted tools; permission events become durable
+   application approvals before side effects continue.
 6. Every durable run event receives a monotonic per-run sequence number.
 7. The server streams persisted events and can resume from the last sequence
    observed by the client.
@@ -339,6 +407,10 @@ Handlers receive decoded job payloads and return Effect programs. They do not
 read process environment variables, create database pools, or instantiate SDK
 clients. Those resources are layer-owned and scoped to the process lifecycle.
 
+The agent-run handler also owns the lease on one session sandbox. Losing the
+job or sandbox lease interrupts the OpenCode request, records a typed runtime
+failure, and prevents two workers from driving the same session concurrently.
+
 The worker demonstrates:
 
 - at-least-once execution with idempotent handlers;
@@ -356,20 +428,25 @@ command, reading/writing files, exposing an endpoint, and terminating the
 workspace. Lower-level lifecycle, command, filesystem, network, snapshot, and
 metrics details stay internal unless a second adapter makes the seam real.
 
-The default implementation is a safe local fake/process adapter for tests and
-development. `packages/sandbox-opensandbox` supplies an optional production
-adapter that maps OpenSandbox's control-plane, data-plane, network-policy, and
-Credential Vault APIs without changing agent orchestration or leaking vendor
-IDs. Command output is streamed, cancellation-aware, size-limited, and
-represented with tagged exit and transport errors.
+The default test implementation is deterministic and process-free.
+`packages/sandbox-opensandbox` supplies the production adapter that maps
+OpenSandbox's control-plane, data-plane, network-policy, and Credential Vault
+APIs without changing agent orchestration or leaking vendor IDs. Local Compose
+may use the deterministic adapter by default and documents how to connect a
+real OpenSandbox deployment. Command output is streamed, cancellation-aware,
+size-limited, and represented with tagged exit and transport errors.
+
+Every `AgentSession` owns exactly one sandbox. A new run may reuse only that
+session's sandbox; no sandbox pool may cross session or user boundaries.
 
 ## Secrets and Sandbox Credential Brokering
 
-`packages/secrets` owns host-side secret references and resolution. Application
-records persist a `SecretRef` containing a provider, identifier, and optional
-version; they never persist the resolved value. The starter supplies an
-environment-backed local resolver and a deterministic test resolver. Cloud
-vault adapters can be added later without changing sandbox or tool contracts.
+`packages/secrets` owns host-side secret references, ingestion, and resolution.
+Application records persist a `CredentialId` and `SecretRef` containing a
+provider, identifier, and optional version; they never persist the resolved
+value. The production adapter uses AWS Secrets Manager with KMS. The starter
+also supplies a deterministic local/test store that is explicitly unsuitable
+for real credentials.
 
 Resolved values are short-lived scoped resources. Their wrapper has redacted
 inspection and serialization behavior, and APIs expose values only through a
@@ -415,6 +492,30 @@ tool, but it cannot select arbitrary secret references or widen a binding. UI,
 events, and audit records show the reference name, target host, action, and
 outcome only. They never expose the value.
 
+Clients upload API keys through a two-step, one-time protocol. The public
+server authenticates the Better Auth principal, validates ownership, creates a
+short-lived pending upload, and returns a signed single-use upload token. The
+browser or CLI then sends the redacted value over TLS to
+`apps/credential-broker`, whose sensitive route has body logging and content
+capture disabled, a strict size limit, `Cache-Control: no-store`, rate limits,
+and generic errors. The broker writes the value immediately to `SecretStore`,
+atomically consumes the upload token, and returns sanitized credential
+metadata. The general API never receives the plaintext and no read-secret API
+exists.
+
+Credentials are personal in the initial release. The authenticated user and
+one deployment-configured default `TenantId` are derived server-side; neither
+is accepted as an authority-bearing client field. The internal tenant column
+is retained for query scoping and future adoption, but organization selection
+and organization-owned credentials are absent from the UI and SDK.
+
+Starting a session accepts authorized `CredentialId` values, never raw secret
+material or arbitrary secret references. The server freezes the session's
+credential set, and the worker installs only the corresponding narrow bindings
+into that session's Credential Vault. Attaching a credential later is an
+explicit authorized operation. Revocation interrupts sessions using the
+credential and removes their live bindings.
+
 The local fake broker records binding metadata and simulates upstream injection
 without placing plaintext inside the fake sandbox. Its contract suite is shared
 with the OpenSandbox adapter.
@@ -425,12 +526,59 @@ which keeps real credentials in the egress sidecar and injects them into matched
 outbound requests, plus the project's
 [control-plane/data-plane architecture](https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/architecture.md).
 
+## Authentication
+
+Better Auth is the concrete authentication system in `packages/auth`. The
+browser uses secure HttpOnly session cookies. The CLI uses Better Auth's Device
+Authorization plugin: it requests a device code, opens or prints the browser
+verification URL, polls at the instructed interval, and stores the resulting
+signed bearer token in the operating-system keychain. The server enables the
+Better Auth bearer integration with signature verification required for
+non-cookie clients. Production device authorization validates registered CLI
+client IDs, uses HTTPS, enforces expiration and polling intervals, and records
+approval and denial audit events.
+
+The runnable local default supports email/password sign-in without requiring
+an external identity provider. Optional social-provider examples stay behind
+configuration. Better Auth tables share Postgres with the application but are
+accessed only through the auth package and required Better Auth hooks.
+
+Both cookie and bearer authentication are converted into one repository-owned
+`Principal`. Application use cases depend on `Principal`, `UserId`, and
+authorization capabilities rather than Better Auth types. Authentication is
+not authorization: every project, session, credential, approval, and event
+operation is scoped to the authenticated user and internal default tenant.
+
+## Common Client SDK and Applications
+
+`packages/client` is the only supported public application client. It depends
+on standard fetch, Effect, Effect Schema, and repository-owned contracts; it
+contains no React, DOM, Node filesystem, terminal, Better Auth, OpenCode, or
+OpenSandbox implementation dependency. Its Effect API exposes projects, tasks,
+sessions, runs, approvals, credentials, and resumable typed event streams. A
+thin Promise/`AsyncIterable` facade delegates to the same implementation.
+
+Authentication is injected through a small client transport interface. The
+browser adapter uses cookies, while the CLI adapter supplies its keychain-held
+bearer token. Streaming uses fetch-based SSE rather than browser-only
+`EventSource`, allowing headers, cancellation, cursors, and reconnection to
+behave identically in both clients.
+
+`packages/client-react` owns TanStack Query keys, query/mutation option
+factories, and React-specific bindings. It does not duplicate HTTP logic.
+`apps/web` consumes it for the graphical client. `apps/cli` consumes the core
+Effect client directly for login, project/task operations, interactive agent
+sessions, approvals, credential upload through hidden input, cancellation, and
+event rendering. Secrets are never accepted as command-line arguments or
+written to CLI configuration files.
+
 ## Server
 
-`apps/server` is the authoritative HTTP process. It assembles configuration,
-observability, database, queue, AI, sandbox, and application layers. It exposes
-versioned endpoints for project/task CRUD, conversations, run commands,
-approvals, and resumable server-sent events.
+`apps/server` is the authoritative public HTTP process. It assembles
+configuration, observability, Better Auth, database, queue, and application
+layers. It exposes versioned endpoints for project/task CRUD, sessions, run
+commands, approvals, credential-upload intents, and resumable server-sent
+events. It never proxies arbitrary OpenCode routes.
 
 HTTP request, response, path, and query shapes come from `packages/contracts`
 Effect Schemas. Handlers should read like orchestration: decode, authorize,
@@ -439,8 +587,9 @@ SDK calls, or frontend-specific view logic.
 
 ## Frontend
 
-`apps/web` is a Vite React client organized around projects, tasks, and an agent
-conversation. State ownership is explicit:
+`apps/web` is a Vite React consumer of the common SDK, organized around
+projects, tasks, credentials, and an agent conversation. State ownership is
+explicit:
 
 - TanStack Query owns remote cache, request deduplication, freshness,
   invalidation, optimistic mutations, and reconciliation.
@@ -550,6 +699,15 @@ enforcement claims.
   mapping; live tests are opt-in.
 - Worker tests cover retries, cancellation, lease loss, concurrency, and
   shutdown.
+- Auth tests cover cookie and signed-bearer principal resolution, device-code
+  expiry/denial/polling, and cross-user authorization rejection.
+- Client contract tests run the same project/session/stream scenarios through
+  browser-cookie and CLI-bearer transports.
+- Credential-ingestion tests prove token expiry, single use, strict ownership,
+  absent body logging, cleanup after partial failure, and no read-secret API.
+- OpenCode adapter fixture tests cover event mapping, permission bridging,
+  cancellation, server authentication, SDK/CLI version mismatch, and runtime
+  loss without requiring a live provider.
 - Server tests exercise schema rejection, error encoding, authorization, and
   SSE resume.
 - Web tests exercise Query projection and XState transitions independently,
@@ -578,26 +736,35 @@ Environment input is decoded once in `packages/config` using Effect Schema.
 Apps consume typed configuration services. `.env.example` contains safe local
 defaults and no secret-shaped placeholders that look real.
 
-The default local path runs with Docker Compose Postgres and a deterministic AI
-adapter, so no API key is required. Setting `AI_PROVIDER=openai` and
-`OPENAI_API_KEY` selects the live adapter. Setup, migration, development, test,
-and guardrail commands are available from the repository root.
+The default local path runs with Docker Compose Postgres, Better Auth, a
+deterministic agent runtime, and a deterministic secret store, so no API key or
+external identity provider is required. A documented live profile connects
+OpenSandbox, launches pinned OpenCode servers inside session sandboxes, and
+uses uploaded provider credentials. The direct OpenAI adapter remains an
+opt-in package example. Setup, migration, development, test, and guardrail
+commands are available from the repository root.
 
-Docker Compose runs Postgres, migrations, server, worker, and web with health
-checks and persistent database storage. The same application images are used by
-the Helm chart. The chart supports separate server and worker scaling, ingress,
+Docker Compose runs Postgres, migrations, server, credential broker, worker,
+CLI development tooling, and web with health checks and persistent database
+storage. The same application images are used by the Helm chart. The chart
+supports separate server, broker, and worker scaling, ingress route separation,
 autoscaling, disruption budgets, network policies, externally managed secrets,
-and EKS Pod Identity annotations. It does not provision an EKS cluster or a
-production Postgres service; documented Terraform/eksctl-neutral prerequisites
-keep infrastructure ownership explicit. OpenSandbox may run beside the chart
-through its upstream Kubernetes controller, while this chart configures the
-application's adapter endpoint and credentials.
+and distinct EKS Pod Identity roles. The broker receives write-only secret
+permissions; the worker receives narrowly scoped read permissions; sandbox
+service accounts receive neither. The chart does not provision an EKS cluster
+or a production Postgres service. OpenSandbox runs beside the chart through
+its upstream Kubernetes controller.
 
-## OpenCode Reference Decisions
+## OpenCode Dependency Decisions
 
 The design was checked against the public OpenCode repository at commit
 `ef3b67308411614b7a08c2ac81931d930e22c835` on 2026-07-16:
 <https://github.com/anomalyco/opencode>.
+
+The inspected implementation exposes headless serving, an official generated
+SDK, async prompting, cancellation, messages, SSE events, permission replies,
+and SQLite-backed session state. The template therefore adopts OpenCode as a
+pinned private runtime dependency behind `AgentRuntime`, not as a public API.
 
 Decisions adopted in template form:
 
@@ -616,30 +783,38 @@ Decisions adopted in template form:
 - request lowering kept separate from transport execution so all provider paths
   can converge on one normalized event stream.
 
-Decisions intentionally not copied:
+Decisions intentionally not exposed or copied:
 
 - filesystem/worktree/shell concepts specific to a coding agent;
-- SQLite as the production persistence model;
-- broad multi-provider and compatibility machinery in the initial release;
+- SQLite as the application persistence model; it remains OpenCode-private
+  runtime state inside one session sandbox;
 - persisting every stream fragment;
 - exposing arbitrary provider request bodies as a primary application model;
 - event sourcing ordinary project and task CRUD.
 
-OpenCode is a reference, not a dependency. No source code is copied into the
-template, and its public types do not become template contracts.
+No OpenCode source code is copied into the template, and its public types do
+not become template contracts. CLI and SDK versions are pinned together and
+checked by configuration and adapter tests.
 
 ## Initial Acceptance Criteria
 
-- A fresh clone can install, configure, migrate, and start web, server, and
-  worker from documented root commands.
-- The default fake-AI flow supports project/task CRUD and one complete streamed
-  run with a tool approval and artifact.
+- A fresh clone can install, configure, migrate, and start web, CLI, server,
+  credential broker, and worker from documented root commands.
+- Better Auth supports a browser session and a CLI device-authorization login;
+  both clients exercise the same transport-neutral SDK contracts.
+- The default deterministic-runtime flow supports project/task CRUD and one
+  complete streamed run with a tool approval and artifact.
+- The production runtime adapter launches a private, password-protected
+  OpenCode server in one exclusive sandbox per application session and maps its
+  events and permissions into stable application contracts.
 - The OpenAI Responses adapter compiles and has fixture-backed tests without
   requiring a key.
 - Public package exports contain no OpenAI, Postgres driver, queue driver,
   sandbox vendor, or Base UI types.
 - The local fake and OpenSandbox credential brokers pass the same contract
   suite; canary secrets never appear in sandbox-visible or persisted surfaces.
+- A browser or CLI can complete the one-time credential upload flow, but cannot
+  retrieve plaintext or reference another user's credential.
 - `pnpm guardrails` verifies design lint, instructions, skills, structure,
   formatting, lint, types, builds, tests, and recipes.
 - The Effect source reference script resolves exactly the installed version and
@@ -650,17 +825,21 @@ template, and its public types do not become template contracts.
 
 ## Implementation Order
 
-This master design is delivered as eight milestone commits. Each milestone must
+This master design is delivered as nine milestone commits. Each milestone must
 leave its completed slice green; later milestones consume only committed public
 interfaces from earlier ones.
 
 1. Repository skeleton, toolchain, Effect truth chain, and guardrail harness.
 2. Contracts, configuration, observability, database, and generic CRUD.
-3. AI package with fake and OpenAI Responses adapters.
-4. Queue and worker package/application with durable agent-run jobs.
-5. Server HTTP/SSE endpoints and approval orchestration.
-6. Web state architecture and shadcn/Base UI conversation interface.
-7. Sandbox boundary, secret resolver, OpenSandbox Credential Vault adapter,
-   end-to-end fake flow, documentation, and final hardening.
-8. Container images, complete local Docker Compose, Helm chart, EKS reference,
-   deployment validation, and template release documentation.
+3. Better Auth, Principal authorization, common client SDK, and CLI/browser auth
+   contract tests.
+4. Direct AI package plus provider-neutral `AgentRuntime` and deterministic
+   runtime fixtures.
+5. Queue and worker package/application with durable agent-session/run jobs.
+6. OpenCode runtime, one-sandbox-per-session lifecycle, credential ingestion,
+   AWS secret store, and OpenSandbox Credential Vault bridge.
+7. Server HTTP/SSE endpoints, browser and CLI flows, approval orchestration,
+   and end-to-end deterministic execution.
+8. Web state architecture and shadcn/Base UI conversation interface.
+9. Container images, complete local Docker Compose, Helm chart, EKS reference,
+   deployment validation, documentation, and final hardening.
