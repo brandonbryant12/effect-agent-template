@@ -1,0 +1,14 @@
+{
+  "name": "@repo/sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "effect": "catalog:",
+    "ulid": "^3.0.1"
+  }
+}

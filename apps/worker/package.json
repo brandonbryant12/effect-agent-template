@@ -1,0 +1,19 @@
+{
+  "name": "@repo/worker-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@repo/config": "workspace:*",
+    "@repo/contracts": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/queue": "workspace:*",
+    "@repo/worker": "workspace:*",
+    "effect": "catalog:",
+    "tsx": "^4.23.1"
+  }
+}
