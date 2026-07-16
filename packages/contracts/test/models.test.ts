@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { AgentRunEvent } from "../src/agent-run.js";
+import { AgentRun, AgentRunEvent } from "../src/agent-run.js";
 import { AgentSession } from "../src/agent-session.js";
 import { Credential } from "../src/credential.js";
 import { decodeProject, Project } from "../src/project.js";
@@ -47,6 +47,21 @@ describe("public contracts", () => {
 
     expect(decoded._tag).toBe("RunStarted");
     expect(decoded.sequence).toBe(1);
+  });
+
+  it("requires every run to belong to one isolated agent session", () => {
+    const run = Schema.decodeUnknownSync(AgentRun)({
+      id: "run_01J00000000000000000000000",
+      sessionId: "session_01J00000000000000000000000",
+      projectId: "project_01J00000000000000000000000",
+      conversationId: "conversation_01J00000000000000000000000",
+      taskId: null,
+      status: "queued",
+      createdAt: "2026-07-16T12:00:00.000Z",
+      updatedAt: "2026-07-16T12:00:00.000Z",
+    });
+
+    expect(run.sessionId).toBe("session_01J00000000000000000000000");
   });
 
   it("does not accept impossible task statuses", () => {

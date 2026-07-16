@@ -1,4 +1,6 @@
 import {
+  AgentRunService,
+  AgentRunServiceLive,
   ProjectService,
   ProjectServiceLive,
   TaskService,
@@ -7,7 +9,15 @@ import {
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { Schema } from "effect";
-import { TenantId, UserId } from "@repo/contracts";
+import {
+  AgentSessionId,
+  CommandId,
+  ConversationId,
+  ProjectId,
+  TaskId,
+  TenantId,
+  UserId,
+} from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { PostgresLive, runMigrations } from "../src/index.js";
 
@@ -24,7 +34,7 @@ integration("Postgres capabilities", () => {
   const Postgres = PostgresLive(databaseUrl ?? "");
   const Services = Layer.merge(
     Layer.provide(
-      Layer.mergeAll(ProjectServiceLive, TaskServiceLive),
+      Layer.mergeAll(ProjectServiceLive, TaskServiceLive, AgentRunServiceLive),
       Postgres,
     ),
     Postgres,
@@ -76,5 +86,65 @@ integration("Postgres capabilities", () => {
       "credentials",
       "users",
     ]);
+  });
+
+  it("admits a run, command, first event, and job exactly once", async () => {
+    const program = Effect.gen(function* () {
+      yield* runMigrations;
+      const sql = yield* SqlClient;
+      const projects = yield* ProjectService;
+      const runs = yield* AgentRunService;
+      const project = yield* projects.create(scope, {
+        name: "Atomic run",
+        description: null,
+      });
+      const conversationId = "conversation_01J00000000000000000000001";
+      const sessionId = "session_01J00000000000000000000001";
+      const commandId = "command_01J00000000000000000000001";
+      yield* sql`DELETE FROM conversations WHERE id = ${conversationId}`;
+      yield* sql`
+        INSERT INTO conversations (id, project_id, title, created_at, updated_at)
+        VALUES (${conversationId}, ${project.id}, 'Atomic run', now(), now())
+      `;
+      yield* sql`
+        INSERT INTO agent_sessions (
+          id, tenant_id, user_id, project_id, conversation_id, status, created_at, updated_at
+        ) VALUES (
+          ${sessionId}, ${scope.tenantId}, ${scope.userId}, ${project.id}, ${conversationId}, 'ready', now(), now()
+        )
+      `;
+      const input = Schema.decodeUnknownSync(
+        Schema.Struct({
+          commandId: CommandId,
+          sessionId: AgentSessionId,
+          projectId: ProjectId,
+          conversationId: ConversationId,
+          taskId: Schema.NullOr(TaskId),
+        }),
+      )({
+        commandId,
+        sessionId,
+        projectId: project.id,
+        conversationId,
+        taskId: null,
+      });
+      const first = yield* runs.admit(scope, input);
+      const repeated = yield* runs.admit(scope, input);
+      const counts = yield* sql<{
+        readonly commands: number;
+        readonly events: number;
+        readonly jobs: number;
+      }>`
+        SELECT
+          (SELECT count(*)::int FROM agent_run_commands WHERE id = ${commandId}) AS commands,
+          (SELECT count(*)::int FROM agent_run_events WHERE run_id = ${first.id}) AS events,
+          (SELECT count(*)::int FROM jobs WHERE payload->>'runId' = ${first.id}) AS jobs
+      `;
+      return { first, repeated, counts: counts[0] };
+    });
+
+    const result = await Effect.runPromise(Effect.provide(program, Services));
+    expect(result.repeated.id).toBe(result.first.id);
+    expect(result.counts).toEqual({ commands: 1, events: 1, jobs: 1 });
   });
 });

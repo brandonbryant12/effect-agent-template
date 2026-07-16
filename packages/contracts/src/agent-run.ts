@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { Timestamp } from "./common.js";
 import {
   AgentRunId,
+  AgentSessionId,
   ApprovalId,
   ArtifactId,
   ConversationId,
@@ -21,6 +22,7 @@ export type AgentRunStatus = typeof AgentRunStatus.Type;
 
 export const AgentRun = Schema.Struct({
   id: AgentRunId,
+  sessionId: AgentSessionId,
   projectId: ProjectId,
   conversationId: ConversationId,
   taskId: Schema.NullOr(TaskId),

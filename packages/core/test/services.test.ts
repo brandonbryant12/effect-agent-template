@@ -1,4 +1,11 @@
-import { ConversationId, ProjectId, TenantId, UserId } from "@repo/contracts";
+import {
+  AgentSessionId,
+  CommandId,
+  ConversationId,
+  ProjectId,
+  TenantId,
+  UserId,
+} from "@repo/contracts";
 import { Effect, Layer, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { ProjectService, ProjectServiceTest } from "../src/project-service.js";
@@ -11,12 +18,17 @@ import {
   CredentialService,
   CredentialServiceTest,
 } from "../src/credential-service.js";
+import {
+  AgentRunService,
+  AgentRunServiceTest,
+} from "../src/agent-run-service.js";
 
 const ServicesTest = Layer.mergeAll(
   ProjectServiceTest,
   TaskServiceTest,
   AgentSessionServiceTest,
   CredentialServiceTest,
+  AgentRunServiceTest,
 );
 
 const tenantId = Schema.decodeUnknownSync(TenantId)(
@@ -33,6 +45,12 @@ const projectId = Schema.decodeUnknownSync(ProjectId)(
 );
 const conversationId = Schema.decodeUnknownSync(ConversationId)(
   "conversation_01J00000000000000000000000",
+);
+const agentSessionId = Schema.decodeUnknownSync(AgentSessionId)(
+  "session_01J00000000000000000000000",
+);
+const commandId = Schema.decodeUnknownSync(CommandId)(
+  "command_01J00000000000000000000000",
 );
 const scope = { tenantId, userId };
 
@@ -141,5 +159,29 @@ describe("core capabilities", () => {
     expect(result.created.displayHint).toBe("");
     expect("secret" in result.created).toBe(false);
     expect(result.denied._tag).toBe("CredentialNotFound");
+  });
+
+  it("admits an idempotent run command with the first durable event", async () => {
+    const program = Effect.gen(function* () {
+      const runs = yield* AgentRunService;
+      const input = {
+        commandId,
+        sessionId: agentSessionId,
+        projectId,
+        conversationId,
+        taskId: null,
+      } as const;
+      const first = yield* runs.admit(scope, input);
+      const repeated = yield* runs.admit(scope, input);
+      const events = yield* runs.events(scope, first.id, 0);
+      return { first, repeated, events };
+    });
+
+    const result = await Effect.runPromise(
+      Effect.provide(program, ServicesTest),
+    );
+    expect(result.repeated.id).toBe(result.first.id);
+    expect(result.events.map((event) => event.sequence)).toEqual([1]);
+    expect(result.events[0]?._tag).toBe("RunStarted");
   });
 });

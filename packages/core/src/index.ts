@@ -5,3 +5,4 @@ export * from "./project-service.js";
 export * from "./task-service.js";
 export * from "./task-transition.js";
 export * from "./access-scope.js";
+export * from "./agent-run-service.js";

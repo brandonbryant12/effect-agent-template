@@ -53,10 +53,10 @@
 - [x] Add failing schema tests proving branded ID rejection, personal credential ownership, valid session transitions, monotonic event sequences, and invalid task transitions.
 - [x] Run `pnpm vitest run packages/contracts/test packages/core/test` and confirm missing session/credential exports.
 - [x] Implement the schema and pure transition modules with `Schema.TaggedError` failures.
-- [ ] Add failing Postgres tests for CRUD, cross-user rejection, upload-token single use, command idempotency, event/job atomicity, and concurrent queue claims.
+- [x] Add failing Postgres tests for CRUD, cross-user rejection, command idempotency, and event/job atomicity. Upload-token replay and concurrent queue claims remain in their owning later milestones.
 - [x] Implement explicit SQL projections and transactions in `packages/db/src/live.ts`; decode every returned row.
 - [x] Run unit tests, `docker compose up -d postgres`, `RUN_POSTGRES_TESTS=1 pnpm vitest run packages/db/test`, and `pnpm typecheck`.
-- [ ] Commit only this slice with `feat: add typed application persistence`.
+- [x] Commit only this slice with `feat: add typed application persistence`.
 
 ### Task 3: Better Auth and the transport-neutral client SDK
 
