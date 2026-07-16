@@ -1,0 +1,19 @@
+{
+  "name": "@repo/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "better-auth": "1.6.23",
+    "effect": "catalog:",
+    "pg": "8.22.0",
+    "ulid": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.6"
+  }
+}

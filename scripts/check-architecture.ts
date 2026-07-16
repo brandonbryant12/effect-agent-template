@@ -43,6 +43,12 @@ for (const file of files) {
     violations.push(`${path}: imports OpenAI outside its adapter`);
   }
   if (
+    /from\s+["']better-auth(?:\/[^"']*)?["']/.test(source) &&
+    !path.startsWith("packages/auth/")
+  ) {
+    violations.push(`${path}: imports Better Auth outside packages/auth`);
+  }
+  if (
     /from\s+["']@alibaba-group\/opensandbox["']/.test(source) &&
     !path.startsWith("packages/sandbox-opensandbox/")
   ) {
