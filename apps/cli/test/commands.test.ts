@@ -33,8 +33,15 @@ describe("CLI commands", () => {
         "session_01JY0000000000000000000000",
         "project_01JY0000000000000000000000",
         "conversation_01JY0000000000000000000000",
+        "Build",
+        "the",
+        "project",
       ]),
-    ).toMatchObject({ _tag: "RunsStart", taskId: null });
+    ).toMatchObject({
+      _tag: "RunsStart",
+      taskId: null,
+      prompt: "Build the project",
+    });
     expect(parseCommand(["credentials", "add", "openai", "Personal"])).toEqual({
       _tag: "CredentialsAdd",
       provider: "openai",

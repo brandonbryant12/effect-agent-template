@@ -170,6 +170,7 @@ describe("core capabilities", () => {
         projectId,
         conversationId,
         taskId: null,
+        prompt: "Build the project",
       } as const;
       const first = yield* runs.admit(scope, input);
       const repeated = yield* runs.admit(scope, input);

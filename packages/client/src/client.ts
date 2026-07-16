@@ -110,6 +110,7 @@ export const createAgentClient = (transport: ClientTransport) => ({
         readonly projectId: ProjectId;
         readonly conversationId: ConversationId;
         readonly taskId: TaskId | null;
+        readonly prompt: string;
       },
     ) =>
       transport.execute({

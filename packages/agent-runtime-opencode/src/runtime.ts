@@ -72,7 +72,16 @@ export const makeOpenCodeRuntime = (
           current.openCodeSessionId,
         )) {
           const event = mapOpenCodeEvent(raw, current.openCodeSessionId);
-          if (event) yield event;
+          if (event) {
+            yield event;
+            if (
+              event._tag === "RuntimeCompleted" ||
+              event._tag === "RuntimeCancelled" ||
+              event._tag === "RuntimeFailed"
+            ) {
+              break;
+            }
+          }
         }
       })();
       return Stream.fromAsyncIterable(iterable, () =>

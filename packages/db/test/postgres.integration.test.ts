@@ -120,6 +120,7 @@ integration("Postgres capabilities", () => {
           projectId: ProjectId,
           conversationId: ConversationId,
           taskId: Schema.NullOr(TaskId),
+          prompt: Schema.String,
         }),
       )({
         commandId,
@@ -127,6 +128,7 @@ integration("Postgres capabilities", () => {
         projectId: project.id,
         conversationId,
         taskId: null,
+        prompt: "Build the project",
       });
       const first = yield* runs.admit(scope, input);
       const repeated = yield* runs.admit(scope, input);
@@ -134,17 +136,24 @@ integration("Postgres capabilities", () => {
         readonly commands: number;
         readonly events: number;
         readonly jobs: number;
+        readonly prompt: string;
       }>`
         SELECT
           (SELECT count(*)::int FROM agent_run_commands WHERE id = ${commandId}) AS commands,
           (SELECT count(*)::int FROM agent_run_events WHERE run_id = ${first.id}) AS events,
-          (SELECT count(*)::int FROM jobs WHERE payload->>'runId' = ${first.id}) AS jobs
+          (SELECT count(*)::int FROM jobs WHERE payload->>'runId' = ${first.id}) AS jobs,
+          (SELECT payload->>'prompt' FROM jobs WHERE payload->>'runId' = ${first.id}) AS prompt
       `;
       return { first, repeated, counts: counts[0] };
     });
 
     const result = await Effect.runPromise(Effect.provide(program, Services));
     expect(result.repeated.id).toBe(result.first.id);
-    expect(result.counts).toEqual({ commands: 1, events: 1, jobs: 1 });
+    expect(result.counts).toEqual({
+      commands: 1,
+      events: 1,
+      jobs: 1,
+      prompt: "Build the project",
+    });
   });
 });

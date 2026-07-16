@@ -25,7 +25,6 @@ const readHidden = (prompt: string): Effect.Effect<string> =>
         process.stdout.write(prompt);
         const input = process.stdin;
         if (!input.isTTY) {
-          let value = "";
           input.setEncoding("utf8");
           input.once("data", (chunk) => resolve(String(chunk).trimEnd()));
           input.resume();

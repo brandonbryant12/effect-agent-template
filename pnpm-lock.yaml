@@ -124,6 +124,9 @@ importers:
 
   apps/worker:
     dependencies:
+      "@repo/agent-runtime":
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
       "@repo/config":
         specifier: workspace:*
         version: link:../../packages/config
@@ -136,6 +139,9 @@ importers:
       "@repo/queue":
         specifier: workspace:*
         version: link:../../packages/queue
+      "@repo/sandbox":
+        specifier: workspace:*
+        version: link:../../packages/sandbox
       "@repo/worker":
         specifier: workspace:*
         version: link:../../packages/worker
@@ -145,6 +151,9 @@ importers:
       tsx:
         specifier: ^4.23.1
         version: 4.23.1
+      ulid:
+        specifier: ^3.0.1
+        version: 3.0.2
 
   examples/effect-recipes:
     dependencies:
@@ -338,9 +347,18 @@ importers:
 
   packages/worker:
     dependencies:
+      "@repo/agent-runtime":
+        specifier: workspace:*
+        version: link:../agent-runtime
+      "@repo/contracts":
+        specifier: workspace:*
+        version: link:../contracts
       "@repo/queue":
         specifier: workspace:*
         version: link:../queue
+      "@repo/sandbox":
+        specifier: workspace:*
+        version: link:../sandbox
       effect:
         specifier: "catalog:"
         version: 4.0.0-beta.98

@@ -249,6 +249,10 @@ export const makeApiHandler =
             projectId: ProjectId,
             conversationId: ConversationId,
             taskId: Schema.NullOr(TaskId),
+            prompt: Schema.String.check(
+              Schema.isMinLength(1),
+              Schema.isMaxLength(100_000),
+            ),
           }),
         );
         return respond(

@@ -92,7 +92,7 @@ integration("public server API", () => {
         handler(
           new Request(`http://localhost:3000${path}`, {
             ...init,
-            headers: { cookie, ...(init.headers ?? {}) },
+            headers: { cookie, ...init.headers },
           }),
         );
       const projectResponse = yield* Effect.promise(() =>
@@ -138,6 +138,7 @@ integration("public server API", () => {
             projectId: project.id,
             conversationId: conversation.id,
             taskId: null,
+            prompt: "Create the deterministic example",
           }),
         }),
       );

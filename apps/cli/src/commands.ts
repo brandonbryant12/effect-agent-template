@@ -37,6 +37,7 @@ export type CliCommand =
       readonly projectId: ProjectId;
       readonly conversationId: ConversationId;
       readonly taskId: TaskId | null;
+      readonly prompt: string;
     }
   | {
       readonly _tag: "CredentialsAdd";
@@ -91,14 +92,15 @@ export const parseCommand = (args: ReadonlyArray<string>): CliCommand => {
     const sessionId = decode(AgentSessionId, values[0]);
     const projectId = decode(ProjectId, values[1]);
     const conversationId = decode(ConversationId, values[2]);
-    const taskId = values[3] ? decode(TaskId, values[3]) : null;
-    return sessionId && projectId && conversationId && taskId !== undefined
+    const prompt = values.slice(3).join(" ");
+    return sessionId && projectId && conversationId && prompt
       ? {
           _tag: "RunsStart",
           sessionId,
           projectId,
           conversationId,
-          taskId,
+          taskId: null,
+          prompt,
         }
       : { _tag: "Help" };
   }
@@ -129,7 +131,7 @@ export const help = `effect-agent commands:
   tasks create <project-id> <title>
   tasks transition <task-id> <todo|in-progress|blocked|done|cancelled>
   sessions create <project-id> <conversation-id>
-  runs start <session-id> <project-id> <conversation-id> [task-id]
+  runs start <session-id> <project-id> <conversation-id> <prompt>
   credentials add <openai|anthropic|github|custom> <label>`;
 
 export const runCommand = (
@@ -179,6 +181,7 @@ export const runCommand = (
             projectId: command.projectId,
             conversationId: command.conversationId,
             taskId: command.taskId,
+            prompt: command.prompt,
           },
         )
         .pipe(

@@ -75,9 +75,10 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           WITH candidate AS (
             SELECT id
             FROM jobs
-            WHERE status IN ('queued', 'retrying')
-              AND available_at <= ${now}
-              AND (lease_expires_at IS NULL OR lease_expires_at <= ${now})
+            WHERE (
+              (status IN ('queued', 'retrying') AND available_at <= ${now})
+              OR (status = 'running' AND lease_expires_at <= ${now})
+            )
             ORDER BY available_at, created_at
             FOR UPDATE SKIP LOCKED
             LIMIT 1

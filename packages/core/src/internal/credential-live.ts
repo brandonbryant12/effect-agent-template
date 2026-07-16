@@ -1,4 +1,4 @@
-import type { Credential, CredentialId } from "@repo/contracts";
+import type { CredentialId } from "@repo/contracts";
 import {
   Credential as CredentialSchema,
   CredentialId as CredentialIdSchema,

@@ -19,6 +19,7 @@ export interface AdmitAgentRun {
   readonly projectId: ProjectId;
   readonly conversationId: ConversationId;
   readonly taskId: TaskId | null;
+  readonly prompt: string;
 }
 
 export class AgentRunNotFound extends Schema.TaggedErrorClass<AgentRunNotFound>()(

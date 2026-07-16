@@ -38,6 +38,17 @@ describe("OpenCode AgentRuntime adapter", () => {
             status: { type: "idle" },
           },
         };
+        yield {
+          type: "message.part.updated",
+          properties: {
+            part: {
+              sessionID: "opencode-session-1",
+              type: "text",
+              text: "must not leak into the completed run",
+              time: { end: 2 },
+            },
+          },
+        };
       },
       replyPermission: async (_connection, _session, requestId, decision) => {
         calls.push({ permission: { requestId, decision } });

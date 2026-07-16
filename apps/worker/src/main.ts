@@ -1,9 +1,11 @@
 import { AppConfigLive } from "@repo/config";
+import { makeAgentRuntimeTest } from "@repo/agent-runtime";
 import { runMigrations } from "@repo/db";
 import { JobQueueService } from "@repo/queue";
-import { makeWorkerRuntime } from "@repo/worker";
+import { makeSandboxWorkspaceTest } from "@repo/sandbox";
+import { makeAgentRunHandler, makeWorkerRuntime } from "@repo/worker";
 import { Effect, Layer } from "effect";
-import { agentRunHandler } from "./agent-run-handler.js";
+import { makeAgentRunJournalPostgres } from "./journal.js";
 import { WorkerInfrastructureLive } from "./layers.js";
 
 const abort = new AbortController();
@@ -13,6 +15,12 @@ process.once("SIGTERM", () => abort.abort());
 const program = Effect.gen(function* () {
   yield* runMigrations;
   const queue = yield* JobQueueService;
+  const journal = yield* makeAgentRunJournalPostgres;
+  const agentRunHandler = makeAgentRunHandler({
+    runtime: makeAgentRuntimeTest(),
+    workspace: makeSandboxWorkspaceTest(),
+    journal,
+  });
   const runtime = makeWorkerRuntime({
     queue,
     workerId: `worker-${process.pid}`,

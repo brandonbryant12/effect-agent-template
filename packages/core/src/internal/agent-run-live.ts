@@ -154,7 +154,7 @@ export const AgentRunServiceLive = Layer.effect(
                   INSERT INTO agent_run_commands (id, run_id, kind, payload, admitted_at)
                   VALUES (
                     ${input.commandId}, ${run.id}, 'prompt',
-                    ${JSON.stringify({ sessionId: input.sessionId })}::jsonb, ${now}
+                    ${JSON.stringify({ sessionId: input.sessionId, prompt: input.prompt })}::jsonb, ${now}
                   )
                 `,
                   sql`
@@ -166,7 +166,7 @@ export const AgentRunServiceLive = Layer.effect(
                     id, kind, payload, status, attempts, max_attempts, available_at, created_at, updated_at
                   ) VALUES (
                     ${jobId}, 'agent-run',
-                    ${JSON.stringify({ runId: run.id, sessionId: run.sessionId })}::jsonb,
+                    ${JSON.stringify({ runId: run.id, sessionId: run.sessionId, prompt: input.prompt })}::jsonb,
                     'queued', 0, 5, ${now}, ${now}, ${now}
                   )
                 `,

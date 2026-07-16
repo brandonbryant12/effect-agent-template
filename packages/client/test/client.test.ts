@@ -147,6 +147,7 @@ describe("shared client", () => {
         projectId,
         conversationId,
         taskId: null,
+        prompt: "Build the requested feature",
       }),
     );
     await execute(
@@ -169,6 +170,7 @@ describe("shared client", () => {
       projectId,
       conversationId,
       taskId: null,
+      prompt: "Build the requested feature",
     });
     expect(requests[5]?.headers.get("idempotency-key")).toBe(commandId);
   });
