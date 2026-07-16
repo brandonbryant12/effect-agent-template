@@ -34,6 +34,7 @@ describe("credential broker API", () => {
       authenticate: () => Effect.succeed(principal),
       uploads,
       maxBodyBytes: 128,
+      webOrigin: "https://app.example",
       onStored: (_principal, credential) =>
         Effect.sync(() => stored.push(credential.credentialId)),
     });
@@ -79,6 +80,7 @@ describe("credential broker API", () => {
         signingKey: Redacted.make("test-signing-key-with-enough-entropy"),
       }),
       maxBodyBytes: 4,
+      webOrigin: "https://app.example",
       onStored: () => Effect.void,
     });
     const response = await handler(

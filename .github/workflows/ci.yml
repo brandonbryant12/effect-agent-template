@@ -1,0 +1,47 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          { POSTGRES_DB: agent, POSTGRES_USER: agent, POSTGRES_PASSWORD: agent }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U agent -d agent"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.23.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 26, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm guardrails
+      - run: pnpm build
+      - run: pnpm template:check
+      - run: pnpm vitest run packages/db/test apps/server/test packages/queue/test/postgres.integration.test.ts
+        env:
+          DATABASE_URL: postgres://agent:agent@localhost:5432/agent
+          RUN_POSTGRES_TESTS: "1"
+
+  images-and-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --build-arg APP=@repo/server -t effect-agent:ci .
+      - run: docker build -f apps/web/Dockerfile -t effect-agent-web:ci .
+      - run: sh scripts/compose-smoke.sh
+      - uses: azure/setup-helm@v4
+      - run: helm lint deploy/helm/effect-agent
+      - run: helm template template deploy/helm/effect-agent > /tmp/effect-agent.yaml

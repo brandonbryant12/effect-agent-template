@@ -78,7 +78,10 @@ export const AgentSessionServiceLive = Layer.effect(
           `session_${ulid()}`,
         );
         const now = new Date();
-        return sql<Row>`
+        return sql
+          .withTransaction(
+            Effect.gen(function* () {
+              const rows = yield* sql<Row>`
           INSERT INTO agent_sessions (
             id, tenant_id, user_id, project_id, conversation_id, status, created_at, updated_at
           )
@@ -91,20 +94,43 @@ export const AgentSessionServiceLive = Layer.effect(
             AND projects.tenant_id = ${scope.tenantId}
             AND projects.owner_user_id = ${scope.userId}
           RETURNING ${projection}
-        `.pipe(
-          Effect.mapError(
-            () => new PersistenceError({ operation: "create-agent-session" }),
-          ),
-          Effect.flatMap((rows) =>
-            rows[0]
-              ? decode(rows[0])
-              : Effect.fail(
+          `;
+              const row = rows[0];
+              if (!row)
+                return yield* Effect.fail(
                   new PersistenceError({
                     operation: "create-agent-session-scope",
                   }),
-                ),
-          ),
-        );
+                );
+              for (const credentialId of input.credentialIds ?? []) {
+                const linked = yield* sql`
+              INSERT INTO agent_session_credentials (session_id, credential_id, created_at)
+              SELECT ${id}, credentials.id, ${now}
+              FROM credentials
+              WHERE credentials.id = ${credentialId}
+                AND credentials.tenant_id = ${scope.tenantId}
+                AND credentials.user_id = ${scope.userId}
+                AND credentials.status = 'active'
+              RETURNING credential_id
+            `;
+                if (linked.length !== 1) {
+                  return yield* Effect.fail(
+                    new PersistenceError({
+                      operation: "attach-session-credential-scope",
+                    }),
+                  );
+                }
+              }
+              return yield* decode(row);
+            }),
+          )
+          .pipe(
+            Effect.catchTag("SqlError", () =>
+              Effect.fail(
+                new PersistenceError({ operation: "create-agent-session" }),
+              ),
+            ),
+          );
       },
       get,
       transition: (scope, id, status) =>

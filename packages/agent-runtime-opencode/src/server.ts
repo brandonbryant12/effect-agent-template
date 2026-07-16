@@ -34,7 +34,7 @@ export const makeOpenCodeServer = (
         .exec(workspace, [
           "sh",
           "-lc",
-          `OPENCODE_SERVER_PASSWORD=$(cat /tmp/opencode-server-password) nohup opencode serve --hostname 0.0.0.0 --port ${OPENCODE_PORT} >/tmp/opencode.log 2>&1 &`,
+          `password=$(cat /tmp/opencode-server-password) && rm -f /tmp/opencode-server-password && OPENCODE_SERVER_PASSWORD="$password" nohup opencode serve --hostname 0.0.0.0 --port ${OPENCODE_PORT} >/tmp/opencode.log 2>&1 &`,
         ])
         .pipe(
           Effect.mapError(

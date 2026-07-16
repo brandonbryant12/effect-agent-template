@@ -76,6 +76,7 @@ integration("public server API", () => {
         }),
         credentialBrokerUrl: "http://localhost:3001",
         webOrigin: "http://localhost:5173",
+        readiness: Effect.void,
       });
       const signup = yield* Effect.promise(() =>
         auth.handler(

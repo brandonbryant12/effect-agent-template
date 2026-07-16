@@ -34,4 +34,15 @@ describe("application configuration", () => {
       }),
     ).toThrow(/OPENAI_API_KEY/);
   });
+
+  it("does not require server-only secrets in a production worker config", () => {
+    const config = decodeAppConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://agent:agent@localhost:5432/agent",
+      SANDBOX_PROVIDER: "opensandbox",
+      OPEN_SANDBOX_API_KEY: "sandbox-key",
+      SECRET_STORE_PROVIDER: "aws",
+    });
+    expect(config.sandboxProvider).toBe("opensandbox");
+  });
 });

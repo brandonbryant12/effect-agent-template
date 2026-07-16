@@ -23,9 +23,19 @@ import {
 } from "@repo/secrets";
 import { Effect, Layer, Redacted } from "effect";
 import { createServer } from "node:http";
+import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { makeApiHandler } from "./api.js";
 
 const config = decodeAppConfig(process.env);
+if (
+  config.nodeEnv === "production" &&
+  (!process.env.BETTER_AUTH_SECRET ||
+    !process.env.CREDENTIAL_UPLOAD_SIGNING_KEY)
+) {
+  throw new Error(
+    "BETTER_AUTH_SECRET and CREDENTIAL_UPLOAD_SIGNING_KEY are required by the production server",
+  );
+}
 const publicUrl =
   process.env.SERVER_PUBLIC_URL ?? `http://localhost:${config.serverPort}`;
 const credentialBrokerUrl =
@@ -66,6 +76,7 @@ const program = Effect.gen(function* () {
   const runs = yield* AgentRunService;
   const approvals = yield* ApprovalService;
   const credentials = yield* CredentialService;
+  const sql = yield* SqlClient;
   const handler = makeApiHandler({
     authenticate: auth.authenticate,
     authHandler: auth.handler,
@@ -79,6 +90,7 @@ const program = Effect.gen(function* () {
     uploads,
     credentialBrokerUrl,
     webOrigin: config.webOrigin,
+    readiness: Effect.asVoid(sql`SELECT 1`),
   });
 
   yield* Effect.callback<void>((resume) => {

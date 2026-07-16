@@ -29,6 +29,7 @@ import type {
   AgentRunEvent,
   ApprovalDecision,
   ApprovalId,
+  CredentialId,
   ProjectId,
 } from "@repo/contracts";
 import { CommandId } from "@repo/contracts";
@@ -125,6 +126,10 @@ const Workbench = ({ userName }: { userName: string }) => {
   const [run, setRun] = useState<AgentRun>();
   const [events, setEvents] = useState<ReadonlyArray<AgentRunEvent>>([]);
   const [lastPrompt, setLastPrompt] = useState("");
+  const [credentialNotice, setCredentialNotice] = useState("");
+  const [sessionCredentialIds, setSessionCredentialIds] = useState<
+    ReadonlyArray<CredentialId>
+  >([]);
   const runToken = useRef(0);
   const [runState, sendRun] = useMachine(runMachine);
   const projects = projectsQuery.data ?? [];
@@ -173,6 +178,7 @@ const Workbench = ({ userName }: { userName: string }) => {
       const session = await agentClient.sessions.create({
         projectId: selected.id,
         conversationId: conversation.id,
+        credentialIds: sessionCredentialIds,
       });
       const admitted = await agentClient.runs.start(
         session.id,
@@ -227,6 +233,35 @@ const Workbench = ({ userName }: { userName: string }) => {
     runToken.current += 1;
     await agentClient.runs.cancel(run.id);
     sendRun({ type: "CANCEL" });
+  };
+
+  const uploadCredential = async (form: HTMLFormElement) => {
+    const data = new FormData(form);
+    const provider = String(data.get("provider")) as
+      "openai" | "anthropic" | "github" | "custom";
+    const label = String(data.get("label"));
+    const secret = String(data.get("secret"));
+    if (!label || !secret) return;
+    setCredentialNotice("Uploading…");
+    const pending = await agentClient.credentials.beginUpload({
+      provider,
+      label,
+    });
+    const response = await fetch(pending.upload.url, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "content-type": "text/plain",
+        "x-upload-token": pending.upload.token,
+      },
+      body: secret,
+    });
+    if (!response.ok) throw new Error("Credential upload was rejected");
+    form.reset();
+    setSessionCredentialIds((current) => [
+      ...new Set([...current, pending.credential.id]),
+    ]);
+    setCredentialNotice("Credential stored. The value cannot be read back.");
   };
 
   return (
@@ -403,6 +438,47 @@ const Workbench = ({ userName }: { userName: string }) => {
                   Secret values use the narrow broker and never return through
                   the application API.
                 </p>
+                <form
+                  className="mt-3 grid gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void uploadCredential(event.currentTarget).catch(() =>
+                      setCredentialNotice(
+                        "Upload failed. The secret was not retained.",
+                      ),
+                    );
+                  }}
+                >
+                  <select
+                    className="h-9 rounded-md border border-[#b6c8cf] bg-white px-3 text-xs"
+                    name="provider"
+                    defaultValue="openai"
+                  >
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="github">GitHub</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <Input name="label" placeholder="Credential label" required />
+                  <Input
+                    autoComplete="off"
+                    name="secret"
+                    placeholder="Secret value"
+                    required
+                    type="password"
+                  />
+                  <Button type="submit" variant="outline">
+                    Store credential
+                  </Button>
+                  {credentialNotice && (
+                    <p
+                      aria-live="polite"
+                      className="text-[11px] leading-4 text-[#637981]"
+                    >
+                      {credentialNotice}
+                    </p>
+                  )}
+                </form>
               </div>
             </section>
 

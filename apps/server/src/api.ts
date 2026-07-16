@@ -42,6 +42,7 @@ export interface ApiServices {
   readonly uploads: CredentialUploadService;
   readonly credentialBrokerUrl: string;
   readonly webOrigin: string;
+  readonly readiness: Effect.Effect<void, unknown>;
 }
 
 const json = (value: unknown, status = 200) =>
@@ -97,8 +98,16 @@ export const makeApiHandler =
       withCors(response, origin, services.webOrigin);
     if (request.method === "OPTIONS")
       return respond(new Response(null, { status: 204 }));
-    if (url.pathname === "/healthz" || url.pathname === "/readyz") {
+    if (url.pathname === "/healthz") {
       return respond(json({ status: "ok" }));
+    }
+    if (url.pathname === "/readyz") {
+      try {
+        await Effect.runPromise(services.readiness);
+        return respond(json({ status: "ready" }));
+      } catch {
+        return respond(json({ status: "unavailable" }, 503));
+      }
     }
     if (url.pathname.startsWith("/api/auth/")) {
       return respond(await services.authHandler(request));
@@ -220,11 +229,17 @@ export const makeApiHandler =
           Schema.Struct({
             projectId: ProjectId,
             conversationId: ConversationId,
+            credentialIds: Schema.optionalKey(Schema.Array(CredentialId)),
           }),
         );
         return respond(
           json(
-            await Effect.runPromise(services.sessions.create(scope, input)),
+            await Effect.runPromise(
+              services.sessions.create(scope, {
+                ...input,
+                credentialIds: input.credentialIds ?? [],
+              }),
+            ),
             201,
           ),
         );

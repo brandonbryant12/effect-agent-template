@@ -3,6 +3,7 @@ import type {
   AgentSessionId,
   AgentSessionStatus,
   ConversationId,
+  CredentialId,
   ProjectId,
 } from "@repo/contracts";
 import {
@@ -16,6 +17,7 @@ import type { AccessScope } from "./access-scope.js";
 export interface CreateAgentSession {
   readonly projectId: ProjectId;
   readonly conversationId: ConversationId;
+  readonly credentialIds?: ReadonlyArray<CredentialId>;
 }
 
 export class AgentSessionNotFound extends Schema.TaggedErrorClass<AgentSessionNotFound>()(
@@ -96,7 +98,8 @@ export const AgentSessionServiceTest = Layer.effect(
               `session_${sequence.toString().padStart(26, "0")}`,
             ),
             ...scope,
-            ...input,
+            projectId: input.projectId,
+            conversationId: input.conversationId,
             status: "provisioning",
             createdAt: now,
             updatedAt: now,

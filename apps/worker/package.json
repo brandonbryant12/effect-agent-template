@@ -16,6 +16,7 @@
     "@repo/queue": "workspace:*",
     "@repo/sandbox": "workspace:*",
     "@repo/sandbox-opensandbox": "workspace:*",
+    "@repo/secrets": "workspace:*",
     "@repo/worker": "workspace:*",
     "effect": "catalog:",
     "tsx": "^4.23.1",

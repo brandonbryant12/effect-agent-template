@@ -15,6 +15,7 @@ import {
   type SandboxWorkspace,
 } from "@repo/sandbox";
 import { makeOpenSandboxWorkspace } from "@repo/sandbox-opensandbox";
+import { makeAwsSecretStore } from "@repo/secrets";
 import {
   makeAgentRunHandler,
   makeCancelHandler,
@@ -22,8 +23,10 @@ import {
   makeWorkerRuntime,
 } from "@repo/worker";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { makeAgentRunJournalPostgres } from "./journal.js";
 import { WorkerInfrastructureLive } from "./layers.js";
+import { makeSessionCredentialInstaller } from "./credentials.js";
 
 const abort = new AbortController();
 process.once("SIGINT", () => abort.abort());
@@ -34,16 +37,18 @@ const program = Effect.gen(function* () {
   const queue = yield* JobQueueService;
   const config = yield* AppConfig;
   const journal = yield* makeAgentRunJournalPostgres;
+  const sql = yield* SqlClient;
   const live = config.sandboxProvider === "opensandbox";
   const connections = new Map<string, OpenCodeConnection>();
-  const baseWorkspace = live
+  const openSandbox = live
     ? makeOpenSandboxWorkspace({
         domain: config.openSandboxDomain,
         apiKey: config.openSandboxApiKey!,
         image: config.openSandboxImage,
         allowedHosts: config.openSandboxAllowedHosts,
-      }).workspace
-    : makeSandboxWorkspaceTest();
+      })
+    : undefined;
+  const baseWorkspace = openSandbox?.workspace ?? makeSandboxWorkspaceTest();
   const openCodeServer = makeOpenCodeServer(baseWorkspace);
   const workspace: SandboxWorkspace = live
     ? {
@@ -89,6 +94,18 @@ const program = Effect.gen(function* () {
     runtime: agentRuntime,
     workspace,
     journal,
+    ...(openSandbox
+      ? {
+          prepareWorkspace: makeSessionCredentialInstaller(
+            sql,
+            openSandbox.credentials,
+            makeAwsSecretStore({
+              region: config.awsRegion,
+              namePrefix: config.secretNamePrefix,
+            }),
+          ),
+        }
+      : {}),
   });
   const runtime = makeWorkerRuntime({
     queue,

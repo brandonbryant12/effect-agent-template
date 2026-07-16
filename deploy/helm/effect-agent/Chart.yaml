@@ -1,0 +1,6 @@
+apiVersion: v2
+name: effect-agent
+description: Opinionated Effect agent application template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

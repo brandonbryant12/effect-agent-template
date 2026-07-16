@@ -1,0 +1,10 @@
+.cache
+node_modules
+dist
+coverage
+.env.example
+.dockerignore
+Dockerfile
+**/Dockerfile
+**/*.conf
+deploy/helm/*/templates

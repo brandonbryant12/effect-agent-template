@@ -1,0 +1,46 @@
+image:
+  repository: ghcr.io/your-org/effect-agent
+  tag: latest
+  pullPolicy: IfNotPresent
+webImage:
+  repository: ghcr.io/your-org/effect-agent-web
+  tag: latest
+
+existingSecret: effect-agent-runtime
+config:
+  nodeEnv: production
+  webOrigin: https://agent.example.com
+  serverPublicUrl: https://agent.example.com
+  credentialBrokerUrl: https://credentials.agent.example.com
+  aiProvider: fake
+  sandboxProvider: opensandbox
+  secretStoreProvider: aws
+  awsRegion: us-east-1
+  secretNamePrefix: effect-agent/credentials
+  openSandboxDomain: opensandbox.example.internal
+  openSandboxImage: ghcr.io/your-org/effect-agent-sandbox:latest
+  openSandboxAllowedHosts: api.openai.com,api.anthropic.com,github.com,api.github.com
+
+serviceAccount:
+  server: { annotations: {} }
+  worker: { annotations: {} }
+  broker: { annotations: {} }
+
+replicaCount:
+  server: 2
+  worker: 1
+  broker: 2
+  web: 2
+
+ingress:
+  enabled: false
+  className: alb
+  annotations: {}
+  webHost: agent.example.com
+  brokerHost: credentials.agent.example.com
+
+resources:
+  server: {}
+  worker: {}
+  broker: {}
+  web: {}

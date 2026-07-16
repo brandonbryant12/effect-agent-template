@@ -260,6 +260,9 @@ importers:
       "@repo/sandbox-opensandbox":
         specifier: workspace:*
         version: link:../../packages/sandbox-opensandbox
+      "@repo/secrets":
+        specifier: workspace:*
+        version: link:../../packages/secrets
       "@repo/worker":
         specifier: workspace:*
         version: link:../../packages/worker

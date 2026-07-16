@@ -1,0 +1,40 @@
+existingSecret: effect-agent-runtime
+image:
+  {
+    repository: ACCOUNT.dkr.ecr.REGION.amazonaws.com/effect-agent,
+    tag: GIT_SHA,
+  }
+webImage:
+  {
+    repository: ACCOUNT.dkr.ecr.REGION.amazonaws.com/effect-agent-web,
+    tag: GIT_SHA,
+  }
+config:
+  webOrigin: https://agent.example.com
+  serverPublicUrl: https://agent.example.com
+  credentialBrokerUrl: https://credentials.agent.example.com
+  awsRegion: REGION
+  secretNamePrefix: effect-agent/credentials
+  openSandboxDomain: opensandbox.example.internal
+  openSandboxImage: ACCOUNT.dkr.ecr.REGION.amazonaws.com/effect-agent-sandbox:GIT_SHA
+serviceAccount:
+  broker:
+    annotations:
+      {
+        eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/effect-agent-broker,
+      }
+  worker:
+    annotations:
+      {
+        eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/effect-agent-worker,
+      }
+  server:
+    annotations: {}
+ingress:
+  enabled: true
+  className: alb
+  webHost: agent.example.com
+  brokerHost: credentials.agent.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip

@@ -58,6 +58,9 @@ export interface CredentialUploadService {
     token: string,
     material: Redacted.Redacted,
   ) => Effect.Effect<StoredCredential, CredentialUploadError>;
+  readonly discard: (
+    stored: StoredCredential,
+  ) => Effect.Effect<void, CredentialUploadError>;
 }
 
 export interface CredentialUploadServiceOptions {
@@ -65,6 +68,12 @@ export interface CredentialUploadServiceOptions {
   readonly signingKey: Redacted.Redacted;
   readonly now?: () => Date;
   readonly ttlSeconds?: number;
+  readonly claim?: (input: {
+    readonly uploadId: typeof CredentialUploadId.Type;
+    readonly credentialId: typeof CredentialId.Type;
+    readonly tokenHash: string;
+    readonly expiresAt: Date;
+  }) => Effect.Effect<boolean, unknown>;
 }
 
 const encode = (value: string): string =>
@@ -130,11 +139,26 @@ export const makeCredentialUploadService = (
           });
         }
         const digest = createHash("sha256").update(token).digest("hex");
-        if (consumed.has(digest)) {
-          return yield* new CredentialUploadError({ reason: "replayed" });
-        }
         if (claims.expiresAt <= now().getTime()) {
           return yield* new CredentialUploadError({ reason: "expired" });
+        }
+        const claimed = options.claim
+          ? yield* options
+              .claim({
+                uploadId: claims.uploadId,
+                credentialId: claims.credentialId,
+                tokenHash: digest,
+                expiresAt: new Date(claims.expiresAt),
+              })
+              .pipe(
+                Effect.mapError(
+                  () =>
+                    new CredentialUploadError({ reason: "store-unavailable" }),
+                ),
+              )
+          : !consumed.has(digest);
+        if (!claimed) {
+          return yield* new CredentialUploadError({ reason: "replayed" });
         }
         const ref = yield* options.secretStore
           .put(material)
@@ -143,8 +167,16 @@ export const makeCredentialUploadService = (
               () => new CredentialUploadError({ reason: "store-unavailable" }),
             ),
           );
-        consumed.add(digest);
+        if (!options.claim) consumed.add(digest);
         return { credentialId: claims.credentialId, secretRef: ref };
       }),
+    discard: (stored) =>
+      options.secretStore
+        .delete(stored.secretRef)
+        .pipe(
+          Effect.mapError(
+            () => new CredentialUploadError({ reason: "store-unavailable" }),
+          ),
+        ),
   };
 };

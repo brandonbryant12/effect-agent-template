@@ -1,5 +1,17 @@
 name: effect-agent-template
 
+x-app-environment: &app-environment
+  NODE_ENV: development
+  DATABASE_URL: postgres://agent:agent@postgres:5432/agent
+  SERVER_HOST: 0.0.0.0
+  SERVER_PORT: 3000
+  WEB_ORIGIN: http://localhost:5173
+  BETTER_AUTH_SECRET: local-only-better-auth-secret-change-me-32
+  CREDENTIAL_UPLOAD_SIGNING_KEY: local-only-upload-key-change-me-32-bytes
+  AI_PROVIDER: fake
+  SANDBOX_PROVIDER: fake
+  SECRET_STORE_PROVIDER: memory
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,15 +19,74 @@ services:
       POSTGRES_DB: agent
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: agent
-    ports:
-      - "5433:5432"
+    ports: ["5433:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
       interval: 2s
       timeout: 3s
       retries: 30
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+
+  migrate:
+    build: { context: ., args: { APP: "@repo/db" } }
+    command: ["pnpm", "db:migrate"]
+    environment: *app-environment
+    depends_on: { postgres: { condition: service_healthy } }
+    restart: "no"
+
+  server:
+    build: { context: ., args: { APP: "@repo/server" } }
+    environment:
+      <<: *app-environment
+      SERVER_PUBLIC_URL: http://localhost:5173
+      CREDENTIAL_BROKER_URL: http://localhost:3001
+    ports: ["3000:3000"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/readyz').then(r=>{if(!r.ok)process.exit(1)})",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  credential-broker:
+    build: { context: ., args: { APP: "@repo/credential-broker" } }
+    environment:
+      <<: *app-environment
+      CREDENTIAL_BROKER_PORT: 3001
+    ports: ["3001:3001"]
+    depends_on: { server: { condition: service_healthy } }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/healthz').then(r=>{if(!r.ok)process.exit(1)})",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    build: { context: ., args: { APP: "@repo/worker-app" } }
+    environment: *app-environment
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    ports: ["5173:8080"]
+    depends_on: { server: { condition: service_healthy } }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   postgres-data:

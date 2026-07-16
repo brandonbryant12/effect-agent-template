@@ -71,13 +71,14 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
       "OPEN_SANDBOX_API_KEY is required when SANDBOX_PROVIDER=opensandbox",
     );
   }
-  if (raw.nodeEnv === "production" && !raw.betterAuthSecret) {
-    throw new Error("BETTER_AUTH_SECRET is required in production");
+  if (
+    raw.sandboxProvider === "opensandbox" &&
+    raw.secretStoreProvider !== "aws"
+  ) {
+    throw new Error(
+      "SECRET_STORE_PROVIDER=aws is required when SANDBOX_PROVIDER=opensandbox",
+    );
   }
-  if (raw.nodeEnv === "production" && !raw.credentialUploadSigningKey) {
-    throw new Error("CREDENTIAL_UPLOAD_SIGNING_KEY is required in production");
-  }
-
   return {
     nodeEnv: raw.nodeEnv,
     databaseUrl: raw.databaseUrl,

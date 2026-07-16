@@ -37,6 +37,10 @@ export interface AgentRunHandlerOptions {
   readonly runtime: AgentRuntime;
   readonly workspace: SandboxWorkspace;
   readonly journal: AgentRunJournal;
+  readonly prepareWorkspace?: (
+    sessionId: AgentSessionIdType,
+    workspace: WorkspaceRef,
+  ) => Effect.Effect<void, unknown>;
 }
 
 const handlerError = (code: string, retryable: boolean) =>
@@ -58,6 +62,15 @@ export const makeAgentRunHandler =
             handlerError("sandbox_unavailable", error.retryable),
           ),
         );
+      if (options.prepareWorkspace) {
+        yield* options
+          .prepareWorkspace(payload.sessionId, workspace)
+          .pipe(
+            Effect.mapError(() =>
+              handlerError("workspace_preparation_failed", false),
+            ),
+          );
+      }
       const runtimeSession = yield* options.runtime
         .createSession({ workspaceRef: workspace.id })
         .pipe(

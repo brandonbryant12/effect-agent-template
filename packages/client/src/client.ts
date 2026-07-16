@@ -91,6 +91,7 @@ export const createAgentClient = (transport: ClientTransport) => ({
     create: (input: {
       readonly projectId: ProjectId;
       readonly conversationId: ConversationId;
+      readonly credentialIds?: ReadonlyArray<Credential["id"]>;
     }) =>
       transport.execute({
         method: "POST",
