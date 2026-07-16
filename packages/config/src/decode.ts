@@ -16,6 +16,11 @@ const RawConfig = Schema.Struct({
   openAiApiKey: Schema.optionalKey(Schema.String),
   openSandboxDomain: Schema.String,
   openSandboxApiKey: Schema.optionalKey(Schema.String),
+  betterAuthSecret: Schema.optionalKey(Schema.String),
+  credentialUploadSigningKey: Schema.optionalKey(Schema.String),
+  secretStoreProvider: Schema.Literals(["memory", "aws"]),
+  awsRegion: Schema.String,
+  secretNamePrefix: Schema.String,
 });
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -37,6 +42,18 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
     ...(environment.OPEN_SANDBOX_API_KEY
       ? { openSandboxApiKey: environment.OPEN_SANDBOX_API_KEY }
       : {}),
+    ...(environment.BETTER_AUTH_SECRET
+      ? { betterAuthSecret: environment.BETTER_AUTH_SECRET }
+      : {}),
+    ...(environment.CREDENTIAL_UPLOAD_SIGNING_KEY
+      ? {
+          credentialUploadSigningKey: environment.CREDENTIAL_UPLOAD_SIGNING_KEY,
+        }
+      : {}),
+    secretStoreProvider: environment.SECRET_STORE_PROVIDER ?? "memory",
+    awsRegion: environment.AWS_REGION ?? "us-east-1",
+    secretNamePrefix:
+      environment.SECRET_NAME_PREFIX ?? "effect-agent-template/credentials",
   });
 
   if (raw.aiProvider === "openai" && !raw.openAiApiKey) {
@@ -46,6 +63,12 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
     throw new Error(
       "OPEN_SANDBOX_API_KEY is required when SANDBOX_PROVIDER=opensandbox",
     );
+  }
+  if (raw.nodeEnv === "production" && !raw.betterAuthSecret) {
+    throw new Error("BETTER_AUTH_SECRET is required in production");
+  }
+  if (raw.nodeEnv === "production" && !raw.credentialUploadSigningKey) {
+    throw new Error("CREDENTIAL_UPLOAD_SIGNING_KEY is required in production");
   }
 
   return {
@@ -64,5 +87,16 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
     ...(raw.openSandboxApiKey
       ? { openSandboxApiKey: Redacted.make(raw.openSandboxApiKey) }
       : {}),
+    betterAuthSecret: Redacted.make(
+      raw.betterAuthSecret ??
+        "development-better-auth-secret-change-before-production",
+    ),
+    credentialUploadSigningKey: Redacted.make(
+      raw.credentialUploadSigningKey ??
+        "development-upload-signing-key-change-before-production",
+    ),
+    secretStoreProvider: raw.secretStoreProvider,
+    awsRegion: raw.awsRegion,
+    secretNamePrefix: raw.secretNamePrefix,
   };
 };

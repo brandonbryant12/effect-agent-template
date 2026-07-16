@@ -1,0 +1,15 @@
+{
+  "name": "@repo/agent-runtime-opencode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "1.18.3",
+    "@repo/agent-runtime": "workspace:*",
+    "@repo/sandbox": "workspace:*",
+    "effect": "catalog:"
+  }
+}

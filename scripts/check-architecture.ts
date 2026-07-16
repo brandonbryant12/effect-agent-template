@@ -55,6 +55,18 @@ for (const file of files) {
     violations.push(`${path}: imports OpenSandbox outside its adapter`);
   }
   if (
+    /from\s+["']@opencode-ai\/sdk(?:\/[^"']*)?["']/.test(source) &&
+    !path.startsWith("packages/agent-runtime-opencode/")
+  ) {
+    violations.push(`${path}: imports OpenCode outside its adapter`);
+  }
+  if (
+    /from\s+["']@aws-sdk\//.test(source) &&
+    !path.startsWith("packages/secrets/")
+  ) {
+    violations.push(`${path}: imports AWS SDK outside packages/secrets`);
+  }
+  if (
     /from\s+["']@base-ui\/react/.test(source) &&
     !path.startsWith("packages/ui/")
   ) {

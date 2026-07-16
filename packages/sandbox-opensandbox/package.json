@@ -1,0 +1,18 @@
+{
+  "name": "@repo/sandbox-opensandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@alibaba-group/opensandbox": "0.1.10",
+    "@repo/sandbox": "workspace:*",
+    "@repo/secrets": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/contracts": "workspace:*"
+  }
+}
