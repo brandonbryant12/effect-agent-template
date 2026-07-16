@@ -6,7 +6,7 @@
 
 **Architecture:** A pnpm monorepo separates public Effect capabilities from provider implementations. A Vite React client talks to an Effect HTTP server, a Postgres-backed worker executes durable agent jobs, and a provider-neutral sandbox boundary can use a deterministic local implementation or OpenSandbox. Docker Compose proves the local system and a Helm chart deploys the same images to Kubernetes/EKS.
 
-**Tech Stack:** Node 22, pnpm 10, TypeScript, Effect `4.0.0-beta.98`, Effect Schema, Effect SQL/Postgres, Vite, React 19, TanStack Query, XState, Tailwind 4, shadcn/Base UI, Vitest, Playwright, Docker Compose, Helm 3, Kubernetes/EKS.
+**Tech Stack:** Node 26, pnpm 10, TypeScript, Effect `4.0.0-beta.98`, Effect Schema, Effect SQL/Postgres, Vite, React 19, TanStack Query, XState, Tailwind 4, shadcn/Base UI, Vitest, Playwright, Docker Compose, Helm 3, Kubernetes/EKS.
 
 ## Global Constraints
 
@@ -23,6 +23,7 @@
 ### Task 1: Repository foundation and executable guardrails
 
 **Files:**
+
 - Create: `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `tsconfig.json`, `tsconfig.base.json`, `vitest.config.ts`, `turbo.json`
 - Create: `.gitignore`, `.env.example`, `.node-version`, `.npmrc`, `AGENTS.md`, `CONTRIBUTING.md`, `LICENSE`
 - Create: `scripts/guardrails.ts`, `scripts/effect-reference-sync.ts`, `scripts/check-architecture.ts`
@@ -31,6 +32,7 @@
 - Test: `packages/testing/test/guardrails.test.ts`
 
 **Interfaces:**
+
 - Produces root commands `dev`, `build`, `test`, `typecheck`, `lint`, `guardrails`, `effect:reference:sync`, `db:migrate`, `compose:up`, and `compose:down`.
 - Produces the package rule: only declared package exports may cross package boundaries.
 
@@ -43,6 +45,7 @@
 ### Task 2: Contracts, configuration, observability, database, and CRUD
 
 **Files:**
+
 - Create: `packages/contracts/src/{ids,project,task,conversation,agent-run,http}.ts`
 - Create: `packages/config/src/{service,live,test}.ts`
 - Create: `packages/observability/src/{service,live,test}.ts`
@@ -51,6 +54,7 @@
 - Test: `packages/contracts/test/*.test.ts`, `packages/core/test/*.test.ts`, `packages/db/test/*.integration.test.ts`
 
 **Interfaces:**
+
 - Produces branded `ProjectId`, `TaskId`, `ConversationId`, `AgentRunId`, `CommandId`, and `JobId` schemas.
 - Produces `ProjectService`, `TaskService`, `ConversationService`, and `AgentRunService` as `Context.Service` capabilities.
 - Produces transaction/query/migration entrypoints; SQL remains internal to live use-case layers.
@@ -64,11 +68,13 @@
 ### Task 3: Provider-neutral AI with fake and OpenAI Responses adapters
 
 **Files:**
+
 - Create: `packages/ai/src/{model,tool,service,fake}.ts`
 - Create: `packages/ai/src/internal/openai/{client,request,event-decoder,error}.ts`
 - Create: `packages/ai/test/{contract,openai-fixtures}.test.ts`, `packages/ai/test/fixtures/*.json`
 
 **Interfaces:**
+
 - Produces `AiModel.stream(request): Stream<AiModelEvent, AiError>` and schema-decoded `AiModel.generateObject`.
 - Produces `AiTool<Input, Output>` with Effect Schema inputs/outputs and Effect handlers.
 - Provider events normalize to response start, text delta, tool call, usage, completion, and failure events.
@@ -82,6 +88,7 @@
 ### Task 4: Durable queue, worker runtime, orchestration, and sandboxes
 
 **Files:**
+
 - Create: `packages/queue/src/{job,service,postgres}.ts`
 - Create: `packages/worker/src/{registry,runtime,agent-run-handler}.ts`
 - Create: `packages/sandbox/src/{workspace,fake}.ts`
@@ -91,6 +98,7 @@
 - Test: `packages/{queue,worker,sandbox,secrets,sandbox-opensandbox}/test/*.test.ts`
 
 **Interfaces:**
+
 - Produces `JobQueue.enqueue`, `claim`, `heartbeat`, `complete`, `retry`, and `fail` with leases and caller IDs.
 - Produces `WorkerRuntime.run` with bounded concurrency and graceful shutdown.
 - Produces `SandboxWorkspace.create/exec/readFile/writeFile/expose/terminate` and `SandboxCredentialBroker.install/remove`.
@@ -104,10 +112,12 @@
 ### Task 5: Effect HTTP server, resumable SSE, and approval flow
 
 **Files:**
+
 - Create: `apps/server/src/{api,handlers,sse,layers,main}.ts`
 - Test: `apps/server/test/{api,sse,agent-flow}.test.ts`
 
 **Interfaces:**
+
 - Produces health, project/task CRUD, conversations, run commands, durable run-event SSE, cancellation, and approval endpoints under `/api/v1`.
 - SSE accepts `Last-Event-ID`, replays durable events after that sequence, then follows live events with keepalives.
 
@@ -120,6 +130,7 @@
 ### Task 6: Deliberate agent client with Query, XState, and shadcn/Base UI
 
 **Files:**
+
 - Create: `apps/web/{index.html,components.json,DESIGN.md}`
 - Create: `apps/web/src/{main,app,styles}.tsx`
 - Create: `apps/web/src/lib/{api,effect-runtime,query-client}.ts`
@@ -128,6 +139,7 @@
 - Test: `apps/web/src/**/*.test.{ts,tsx}`, `apps/web/e2e/agent-flow.spec.ts`
 
 **Interfaces:**
+
 - TanStack Query owns server entities; one event projector updates the cache.
 - XState owns only run/reconnect/approval/cancel phases and never duplicates entity data.
 - shadcn first-party chat components use Base UI-compatible generated source.
@@ -141,12 +153,14 @@
 ### Task 7: Full local runtime and end-to-end example
 
 **Files:**
+
 - Create: `Dockerfile`, `compose.yaml`, `.dockerignore`
 - Create: `scripts/{wait-for-health,seed-demo}.ts`
 - Create: `docs/{getting-started,architecture,patterns,testing}/**/*.md`
 - Test: `tests/e2e/template-flow.spec.ts`
 
 **Interfaces:**
+
 - `docker compose up --build` starts healthy Postgres, migration, server, worker, and web services.
 - The fake agent creates a proposed artifact, pauses for approval, uses the fake sandbox, then completes the linked task.
 
@@ -158,6 +172,7 @@
 ### Task 8: Helm, EKS, CI, and template release
 
 **Files:**
+
 - Create: `deploy/charts/effect-agent/{Chart.yaml,values.yaml,values.schema.json,templates/*}`
 - Create: `deploy/eks/{README.md,values.example.yaml,pod-identity-policy.example.json}`
 - Create: `.github/workflows/{ci,images,helm}.yml`, `.github/dependabot.yml`
@@ -165,6 +180,7 @@
 - Test: `scripts/check-template.ts`
 
 **Interfaces:**
+
 - The chart deploys server, worker, and web separately with migrations, probes, resources, autoscaling, disruption budgets, ingress, network policies, and external Secret references.
 - EKS guidance uses EKS Pod Identity, one service account/role per workload, managed Postgres, ECR images, and the upstream OpenSandbox controller chart.
 

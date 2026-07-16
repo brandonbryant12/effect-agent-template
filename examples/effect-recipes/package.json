@@ -1,0 +1,9 @@
+{
+  "name": "@repo/effect-recipes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "effect": "catalog:"
+  }
+}

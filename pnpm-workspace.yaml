@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+  - examples/*
+
+catalog:
+  effect: 4.0.0-beta.98
+  "@effect/vitest": 4.0.0-beta.98
+  "@effect/sql-pg": 4.0.0-beta.98

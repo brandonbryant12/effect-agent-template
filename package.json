@@ -1,0 +1,38 @@
+{
+  "name": "effect-agent-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "build": "pnpm -r --if-present build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit --pretty false",
+    "lint": "oxlint . && prettier --check .",
+    "format": "prettier --write .",
+    "architecture:check": "tsx scripts/check-architecture.ts",
+    "recipes": "vitest run examples/effect-recipes/test",
+    "guardrails": "pnpm lint && pnpm typecheck && pnpm architecture:check && pnpm test",
+    "effect:reference:sync": "tsx scripts/effect-reference-sync.ts",
+    "db:migrate": "pnpm --filter @repo/db migrate",
+    "compose:up": "docker compose up --build",
+    "compose:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@google/design.md": "^0.3.0",
+    "@types/node": "^24.10.0",
+    "effect": "catalog:",
+    "oxlint": "^1.74.0",
+    "prettier": "^3.9.5",
+    "tsx": "^4.23.1",
+    "turbo": "^2.10.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
