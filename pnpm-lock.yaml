@@ -239,6 +239,9 @@ importers:
       "@repo/agent-runtime":
         specifier: workspace:*
         version: link:../../packages/agent-runtime
+      "@repo/agent-runtime-opencode":
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime-opencode
       "@repo/config":
         specifier: workspace:*
         version: link:../../packages/config
@@ -254,6 +257,9 @@ importers:
       "@repo/sandbox":
         specifier: workspace:*
         version: link:../../packages/sandbox
+      "@repo/sandbox-opensandbox":
+        specifier: workspace:*
+        version: link:../../packages/sandbox-opensandbox
       "@repo/worker":
         specifier: workspace:*
         version: link:../../packages/worker

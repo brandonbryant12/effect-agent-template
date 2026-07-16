@@ -5,10 +5,13 @@ import {
   Conversation,
   Credential,
   PendingCredentialUpload,
+  ApprovalRequest,
   Project,
   Task,
   type AgentRunId,
   type AgentSessionId,
+  type ApprovalDecision,
+  type ApprovalId,
   type CommandId,
   type ConversationId,
   type CreateConversation,
@@ -125,6 +128,27 @@ export const createAgentClient = (transport: ClientTransport) => ({
         path: `/runs/${encodeURIComponent(runId)}/events`,
         schema: AgentRunEvent,
         ...(after === undefined ? {} : { after }),
+      }),
+    cancel: (runId: AgentRunId) =>
+      transport.execute({
+        method: "POST",
+        path: `/runs/${encodeURIComponent(runId)}/cancel`,
+        schema: AgentRun,
+      }),
+  },
+  approvals: {
+    get: (approvalId: ApprovalId) =>
+      transport.execute({
+        method: "GET",
+        path: `/approvals/${encodeURIComponent(approvalId)}`,
+        schema: ApprovalRequest,
+      }),
+    reply: (approvalId: ApprovalId, decision: ApprovalDecision) =>
+      transport.execute({
+        method: "POST",
+        path: `/approvals/${encodeURIComponent(approvalId)}/reply`,
+        schema: ApprovalRequest,
+        body: { decision },
       }),
   },
   credentials: {

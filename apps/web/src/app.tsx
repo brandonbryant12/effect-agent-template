@@ -24,7 +24,13 @@ import { LoginPanel } from "@/features/auth/login-panel";
 import { runMachine } from "@/features/agent-run/run-machine";
 import { agentClient, authClient, effectClient } from "@/lib/client";
 import { projectQueryOptions, taskQueryOptions } from "@repo/client-react";
-import type { AgentRun, AgentRunEvent, ProjectId } from "@repo/contracts";
+import type {
+  AgentRun,
+  AgentRunEvent,
+  ApprovalDecision,
+  ApprovalId,
+  ProjectId,
+} from "@repo/contracts";
 import { CommandId } from "@repo/contracts";
 import { Schema } from "effect";
 import { StatusBeacon, StatusBeaconProvider } from "@repo/ui";
@@ -48,7 +54,13 @@ const terminal = (event: AgentRunEvent) =>
   event._tag === "RunFailed" ||
   event._tag === "RunCancelled";
 
-const EventSpine = ({ events }: { events: ReadonlyArray<AgentRunEvent> }) => (
+const EventSpine = ({
+  events,
+  onApproval,
+}: {
+  events: ReadonlyArray<AgentRunEvent>;
+  onApproval: (id: ApprovalId, decision: ApprovalDecision) => void;
+}) => (
   <div className="event-spine grid gap-4 pb-4">
     {events.map((event) => (
       <div className="relative pl-7" key={`${event.runId}-${event.sequence}`}>
@@ -70,7 +82,31 @@ const EventSpine = ({ events }: { events: ReadonlyArray<AgentRunEvent> }) => (
               </span>
             </div>
             {event._tag === "ApprovalRequested" && (
-              <p className="mt-1 text-xs text-[#637981]">{event.safeSummary}</p>
+              <div className="mt-2">
+                <p className="text-xs text-[#637981]">{event.safeSummary}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onApproval(event.approvalId, "once")}
+                  >
+                    Allow once
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onApproval(event.approvalId, "always")}
+                  >
+                    Allow for session
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onApproval(event.approvalId, "reject")}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
             )}
             {event._tag === "RunFailed" && (
               <p className="mt-1 text-xs text-red-700">{event.message}</p>
@@ -179,6 +215,18 @@ const Workbench = ({ userName }: { userName: string }) => {
     } catch {
       sendRun({ type: "FAILED" });
     }
+  };
+
+  const replyApproval = async (id: ApprovalId, decision: ApprovalDecision) => {
+    await agentClient.approvals.reply(id, decision);
+    sendRun({ type: decision === "reject" ? "REJECTED" : "APPROVED" });
+  };
+
+  const cancelRun = async () => {
+    if (!run) return;
+    runToken.current += 1;
+    await agentClient.runs.cancel(run.id);
+    sendRun({ type: "CANCEL" });
   };
 
   return (
@@ -370,6 +418,14 @@ const Workbench = ({ userName }: { userName: string }) => {
                 </div>
                 <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[#637981]">
                   <Radio className="size-3.5" /> {String(runState.value)}
+                  {run &&
+                    !runState.matches("completed") &&
+                    !runState.matches("failed") &&
+                    !runState.matches("cancelled") && (
+                      <Button size="sm" variant="ghost" onClick={cancelRun}>
+                        Cancel
+                      </Button>
+                    )}
                 </div>
               </div>
               <Conversation className="min-h-0 flex-1">
@@ -387,7 +443,7 @@ const Workbench = ({ userName }: { userName: string }) => {
                           <MessageContent>{lastPrompt}</MessageContent>
                         </Message>
                       )}
-                      <EventSpine events={events} />
+                      <EventSpine events={events} onApproval={replyApproval} />
                     </>
                   )}
                 </ConversationContent>

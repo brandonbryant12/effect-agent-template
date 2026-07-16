@@ -34,6 +34,14 @@ export const toPromiseClient = (client: AgentClient) => ({
       Effect.runPromise(client.runs.start(...input)),
     events: (...input: Parameters<AgentClient["runs"]["events"]>) =>
       Stream.toAsyncIterable(client.runs.events(...input)),
+    cancel: (id: Parameters<AgentClient["runs"]["cancel"]>[0]) =>
+      Effect.runPromise(client.runs.cancel(id)),
+  },
+  approvals: {
+    get: (id: Parameters<AgentClient["approvals"]["get"]>[0]) =>
+      Effect.runPromise(client.approvals.get(id)),
+    reply: (...input: Parameters<AgentClient["approvals"]["reply"]>) =>
+      Effect.runPromise(client.approvals.reply(...input)),
   },
   credentials: {
     beginUpload: (

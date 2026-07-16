@@ -1,6 +1,9 @@
 import type { AgentClient } from "@repo/client";
 import {
   AgentSessionId,
+  AgentRunId,
+  ApprovalDecision,
+  ApprovalId,
   CommandId,
   ConversationId,
   CredentialProvider,
@@ -43,6 +46,12 @@ export type CliCommand =
       readonly _tag: "CredentialsAdd";
       readonly provider: CredentialProvider;
       readonly label: string;
+    }
+  | { readonly _tag: "RunsCancel"; readonly runId: typeof AgentRunId.Type }
+  | {
+      readonly _tag: "ApprovalsReply";
+      readonly approvalId: typeof ApprovalId.Type;
+      readonly decision: typeof ApprovalDecision.Type;
     };
 
 const decode = <S extends Schema.ConstraintDecoder<unknown, never>>(
@@ -104,6 +113,17 @@ export const parseCommand = (args: ReadonlyArray<string>): CliCommand => {
         }
       : { _tag: "Help" };
   }
+  if (resource === "runs" && action === "cancel") {
+    const runId = decode(AgentRunId, values[0]);
+    return runId ? { _tag: "RunsCancel", runId } : { _tag: "Help" };
+  }
+  if (resource === "approvals" && action === "reply") {
+    const approvalId = decode(ApprovalId, values[0]);
+    const decision = decode(ApprovalDecision, values[1]);
+    return approvalId && decision
+      ? { _tag: "ApprovalsReply", approvalId, decision }
+      : { _tag: "Help" };
+  }
   if (resource === "credentials" && action === "add") {
     const provider = decode(CredentialProvider, values[0]);
     return provider && values[1]
@@ -132,6 +152,8 @@ export const help = `effect-agent commands:
   tasks transition <task-id> <todo|in-progress|blocked|done|cancelled>
   sessions create <project-id> <conversation-id>
   runs start <session-id> <project-id> <conversation-id> <prompt>
+  runs cancel <run-id>
+  approvals reply <approval-id> <once|always|reject>
   credentials add <openai|anthropic|github|custom> <label>`;
 
 export const runCommand = (
@@ -192,6 +214,15 @@ export const runCommand = (
               .pipe(Stream.runForEach(dependencies.output)),
           ),
         );
+    case "RunsCancel":
+      return print(dependencies.client.runs.cancel(command.runId));
+    case "ApprovalsReply":
+      return print(
+        dependencies.client.approvals.reply(
+          command.approvalId,
+          command.decision,
+        ),
+      );
     case "CredentialsAdd":
       return Effect.gen(function* () {
         const pending = yield* dependencies.client.credentials.beginUpload({

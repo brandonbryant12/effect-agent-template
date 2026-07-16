@@ -9,12 +9,15 @@ import {
   CreateTask,
   CredentialId,
   CredentialProvider,
+  ApprovalDecision,
+  ApprovalId,
   ProjectId,
   TaskId,
   TaskStatus,
 } from "@repo/contracts";
 import {
   AgentRunService,
+  ApprovalService,
   AgentSessionService,
   ConversationService,
   CredentialService,
@@ -34,6 +37,7 @@ export interface ApiServices {
   readonly conversations: Context.Service.Shape<typeof ConversationService>;
   readonly sessions: Context.Service.Shape<typeof AgentSessionService>;
   readonly runs: Context.Service.Shape<typeof AgentRunService>;
+  readonly approvals: Context.Service.Shape<typeof ApprovalService>;
   readonly credentials: Context.Service.Shape<typeof CredentialService>;
   readonly uploads: CredentialUploadService;
   readonly credentialBrokerUrl: string;
@@ -274,6 +278,51 @@ export const makeApiHandler =
           json(
             await Effect.runPromise(
               services.runs.get(scope, decode(AgentRunId, run[1])),
+            ),
+          ),
+        );
+      }
+      const cancelRun = url.pathname.match(
+        /^\/api\/v1\/runs\/([^/]+)\/cancel$/,
+      );
+      if (cancelRun && request.method === "POST") {
+        return respond(
+          json(
+            await Effect.runPromise(
+              services.approvals.cancelRun(
+                scope,
+                decode(AgentRunId, cancelRun[1]),
+              ),
+            ),
+          ),
+        );
+      }
+      const approval = url.pathname.match(/^\/api\/v1\/approvals\/([^/]+)$/);
+      if (approval && request.method === "GET") {
+        return respond(
+          json(
+            await Effect.runPromise(
+              services.approvals.get(scope, decode(ApprovalId, approval[1])),
+            ),
+          ),
+        );
+      }
+      const approvalReply = url.pathname.match(
+        /^\/api\/v1\/approvals\/([^/]+)\/reply$/,
+      );
+      if (approvalReply && request.method === "POST") {
+        const input = await body(
+          request,
+          Schema.Struct({ decision: ApprovalDecision }),
+        );
+        return respond(
+          json(
+            await Effect.runPromise(
+              services.approvals.resolve(
+                scope,
+                decode(ApprovalId, approvalReply[1]),
+                input.decision,
+              ),
             ),
           ),
         );

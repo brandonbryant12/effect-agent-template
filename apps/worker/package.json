@@ -9,11 +9,13 @@
   },
   "dependencies": {
     "@repo/agent-runtime": "workspace:*",
+    "@repo/agent-runtime-opencode": "workspace:*",
     "@repo/config": "workspace:*",
     "@repo/contracts": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/queue": "workspace:*",
     "@repo/sandbox": "workspace:*",
+    "@repo/sandbox-opensandbox": "workspace:*",
     "@repo/worker": "workspace:*",
     "effect": "catalog:",
     "tsx": "^4.23.1",

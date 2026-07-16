@@ -16,6 +16,8 @@ export interface AppConfigValue {
   readonly openAiModel: string;
   readonly openAiApiKey?: Redacted.Redacted;
   readonly openSandboxDomain: string;
+  readonly openSandboxImage: string;
+  readonly openSandboxAllowedHosts: ReadonlyArray<string>;
   readonly openSandboxApiKey?: Redacted.Redacted;
   readonly betterAuthSecret: Redacted.Redacted;
   readonly credentialUploadSigningKey: Redacted.Redacted;

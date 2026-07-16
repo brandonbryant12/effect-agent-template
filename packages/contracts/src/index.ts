@@ -1,5 +1,6 @@
 export * from "./agent-run.js";
 export * from "./agent-session.js";
+export * from "./approval.js";
 export * from "./common.js";
 export * from "./conversation.js";
 export * from "./credential.js";

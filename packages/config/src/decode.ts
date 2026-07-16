@@ -15,6 +15,8 @@ const RawConfig = Schema.Struct({
   openAiModel: Schema.String,
   openAiApiKey: Schema.optionalKey(Schema.String),
   openSandboxDomain: Schema.String,
+  openSandboxImage: Schema.String,
+  openSandboxAllowedHosts: Schema.String,
   openSandboxApiKey: Schema.optionalKey(Schema.String),
   betterAuthSecret: Schema.optionalKey(Schema.String),
   credentialUploadSigningKey: Schema.optionalKey(Schema.String),
@@ -36,6 +38,11 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
     sandboxProvider: environment.SANDBOX_PROVIDER ?? "fake",
     openAiModel: environment.OPENAI_MODEL ?? "gpt-5.6",
     openSandboxDomain: environment.OPEN_SANDBOX_DOMAIN ?? "localhost:8080",
+    openSandboxImage:
+      environment.OPEN_SANDBOX_IMAGE ?? "effect-agent-sandbox:local",
+    openSandboxAllowedHosts:
+      environment.OPEN_SANDBOX_ALLOWED_HOSTS ??
+      "api.openai.com,api.anthropic.com,github.com,api.github.com",
     ...(environment.OPENAI_API_KEY
       ? { openAiApiKey: environment.OPENAI_API_KEY }
       : {}),
@@ -84,6 +91,11 @@ export const decodeAppConfig = (environment: Environment): AppConfigValue => {
       ? { openAiApiKey: Redacted.make(raw.openAiApiKey) }
       : {}),
     openSandboxDomain: raw.openSandboxDomain,
+    openSandboxImage: raw.openSandboxImage,
+    openSandboxAllowedHosts: raw.openSandboxAllowedHosts
+      .split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
     ...(raw.openSandboxApiKey
       ? { openSandboxApiKey: Redacted.make(raw.openSandboxApiKey) }
       : {}),

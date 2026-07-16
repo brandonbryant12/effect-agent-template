@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { Timestamp } from "./common.js";
+import { ApprovalDecision } from "./approval.js";
 import {
   AgentRunId,
   AgentSessionId,
@@ -61,7 +62,7 @@ export const ApprovalRequested = Schema.TaggedStruct("ApprovalRequested", {
 export const ApprovalResolved = Schema.TaggedStruct("ApprovalResolved", {
   ...durable,
   approvalId: ApprovalId,
-  decision: Schema.Literals(["once", "always", "reject"]),
+  decision: ApprovalDecision,
 });
 export const ArtifactCreated = Schema.TaggedStruct("ArtifactCreated", {
   ...durable,

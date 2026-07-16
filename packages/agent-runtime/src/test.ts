@@ -7,6 +7,7 @@ import type { AgentRuntime } from "./service.js";
 interface State {
   readonly events: Array<AgentRuntimeEvent>;
   awaitingPermission: boolean;
+  cursor: number;
 }
 
 const missing = (operation: string) =>
@@ -30,6 +31,7 @@ export const makeAgentRuntimeTest = (): AgentRuntime => {
         sessions.set(session.id, {
           events: [{ _tag: "RuntimeReady", session }],
           awaitingPermission: false,
+          cursor: 0,
         });
         return session;
       }),
@@ -64,9 +66,10 @@ export const makeAgentRuntimeTest = (): AgentRuntime => {
       ),
     events: (session) => {
       const current = sessions.get(session.id);
-      return current
-        ? Stream.fromIterable(current.events)
-        : Stream.fail(missing("events"));
+      if (!current) return Stream.fail(missing("events"));
+      const unread = current.events.slice(current.cursor);
+      current.cursor = current.events.length;
+      return Stream.fromIterable(unread);
     },
     replyPermission: ({ session, permissionId, decision }) =>
       state(session, "reply-permission").pipe(

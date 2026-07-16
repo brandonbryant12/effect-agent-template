@@ -2,6 +2,8 @@ import { createBetterAuthRuntime } from "@repo/auth";
 import {
   AgentRunService,
   AgentRunServiceLive,
+  ApprovalService,
+  ApprovalServiceLive,
   AgentSessionService,
   AgentSessionServiceLive,
   ConversationService,
@@ -44,6 +46,7 @@ integration("public server API", () => {
         ConversationServiceLive,
         AgentSessionServiceLive,
         AgentRunServiceLive,
+        ApprovalServiceLive,
         CredentialServiceLive,
       ),
       Postgres,
@@ -55,6 +58,7 @@ integration("public server API", () => {
       const conversations = yield* ConversationService;
       const sessions = yield* AgentSessionService;
       const runs = yield* AgentRunService;
+      const approvals = yield* ApprovalService;
       const credentials = yield* CredentialService;
       const handler = makeApiHandler({
         authenticate: auth.authenticate,
@@ -64,6 +68,7 @@ integration("public server API", () => {
         conversations,
         sessions,
         runs,
+        approvals,
         credentials,
         uploads: makeCredentialUploadService({
           secretStore: makeSecretStoreMemory(),
