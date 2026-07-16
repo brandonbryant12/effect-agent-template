@@ -30,6 +30,8 @@ tasks, conversations, agent runs, tools, approvals, and artifacts.
 - Include an AI package that demonstrates current AI API best practices through
   Effect, with OpenAI Responses as the first production adapter.
 - Include both a reusable worker package and a runnable worker application.
+- Demonstrate brokered sandbox credentials so agents can use external services
+  without possessing or observing the real secrets.
 - Keep provider SDK types and infrastructure details behind repository-owned
   contracts.
 - Give agents compact instructions, checked recipes, structural guardrails, and
@@ -84,6 +86,8 @@ packages/
   queue/                Durable job contracts and queue capability
   worker/               Worker runtime, handlers, retry policy, and lifecycle
   sandbox/              Provider-neutral sandbox workspace capability
+  sandbox-opensandbox/  Optional OpenSandbox adapter and Credential Vault bridge
+  secrets/              Host-side secret references, resolution, and redaction
   observability/        Logging, metrics, tracing, and correlation context
   config/               Schema-decoded environment configuration
   ui/                   shadcn source components and shared product components
@@ -351,11 +355,74 @@ command, reading/writing files, exposing an endpoint, and terminating the
 workspace. Lower-level lifecycle, command, filesystem, network, snapshot, and
 metrics details stay internal unless a second adapter makes the seam real.
 
-The first implementation is a safe local fake/process adapter for tests and
-development. A future OpenSandbox implementation can map its control-plane and
-data-plane APIs without changing agent orchestration or leaking vendor IDs.
-Command output is streamed, cancellation-aware, size-limited, and represented
-with tagged exit and transport errors.
+The default implementation is a safe local fake/process adapter for tests and
+development. `packages/sandbox-opensandbox` supplies an optional production
+adapter that maps OpenSandbox's control-plane, data-plane, network-policy, and
+Credential Vault APIs without changing agent orchestration or leaking vendor
+IDs. Command output is streamed, cancellation-aware, size-limited, and
+represented with tagged exit and transport errors.
+
+## Secrets and Sandbox Credential Brokering
+
+`packages/secrets` owns host-side secret references and resolution. Application
+records persist a `SecretRef` containing a provider, identifier, and optional
+version; they never persist the resolved value. The starter supplies an
+environment-backed local resolver and a deterministic test resolver. Cloud
+vault adapters can be added later without changing sandbox or tool contracts.
+
+Resolved values are short-lived scoped resources. Their wrapper has redacted
+inspection and serialization behavior, and APIs expose values only through a
+scoped callback. No public command, event, error, metric, span, cache key, or
+database model accepts a raw secret string.
+
+For OpenSandbox, `SandboxCredentialBroker` resolves approved `SecretRef` values
+on the trusted host and writes them to OpenSandbox Credential Vault. The
+sandbox process receives an empty or fake environment value when a CLI requires
+one. The egress sidecar injects the real credential only when an outbound HTTPS
+request matches a declared binding. The OpenSandbox control-plane credential is
+separate application infrastructure configuration: it remains on the trusted
+server and is never exposed to a sandbox, model, tool argument, or credential
+binding.
+
+Bindings are repository-owned schemas with:
+
+- scheme, host, method, and narrow path matchers;
+- `bearer`, `basic`, `apiKey`, `customHeaders`, or substitution-only auth;
+- exact placeholder substitution restricted to selected path, query, header,
+  or body surfaces;
+- the `SecretRef` values needed by that binding;
+- an owning tool/action and human-readable purpose.
+
+The secure default is fail-closed:
+
+- sandbox egress uses `defaultAction="deny"`;
+- every credential host is explicitly allowlisted;
+- bindings use HTTPS and the narrowest practical method/path scope;
+- ambiguous matches are rejected;
+- broker activation fails when the OpenSandbox runtime lacks the required
+  credential-proxy, egress interception, or transport-security capability;
+- real secrets are never placed in sandbox environment variables, command
+  arguments, files, metadata, or snapshots;
+- Credential Vault state is not considered part of a sandbox snapshot and is
+  re-established from references after resume;
+- credentials are deleted when a run terminates and patched when a reference is
+  rotated;
+- tool permission approval occurs before credential binding installation.
+
+Credential access is server-authored. The model or sandbox may request a named
+tool, but it cannot select arbitrary secret references or widen a binding. UI,
+events, and audit records show the reference name, target host, action, and
+outcome only. They never expose the value.
+
+The local fake broker records binding metadata and simulates upstream injection
+without placing plaintext inside the fake sandbox. Its contract suite is shared
+with the OpenSandbox adapter.
+
+The OpenSandbox integration is grounded in the current
+[Credential Vault guide](https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/guides/credential-vault.md),
+which keeps real credentials in the egress sidecar and injects them into matched
+outbound requests, plus the project's
+[control-plane/data-plane architecture](https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/architecture.md).
 
 ## Server
 
@@ -473,6 +540,11 @@ enforcement claims.
   production adapter where practical.
 - Postgres behavior has focused integration tests covering transactions,
   uniqueness/idempotency, ordering, and concurrent claims.
+- Secret-broker contract tests use canary values and prove they are absent from
+  sandbox environment, commands, files, events, errors, logs, snapshots, and
+  persisted records while the matched mock upstream receives the credential.
+- Sandbox security tests prove that unmatched hosts, paths, methods, ambiguous
+  bindings, and missing credential-proxy capabilities fail closed.
 - The OpenAI adapter uses recorded protocol fixtures for decoding and event
   mapping; live tests are opt-in.
 - Worker tests cover retries, cancellation, lease loss, concurrency, and
@@ -555,6 +627,8 @@ template, and its public types do not become template contracts.
   requiring a key.
 - Public package exports contain no OpenAI, Postgres driver, queue driver,
   sandbox vendor, or Base UI types.
+- The local fake and OpenSandbox credential brokers pass the same contract
+  suite; canary secrets never appear in sandbox-visible or persisted surfaces.
 - `pnpm guardrails` verifies design lint, instructions, skills, structure,
   formatting, lint, types, builds, tests, and recipes.
 - The Effect source reference script resolves exactly the installed version and
@@ -575,4 +649,5 @@ green; later plans consume only committed public interfaces from earlier ones.
 4. Queue and worker package/application with durable agent-run jobs.
 5. Server HTTP/SSE endpoints and approval orchestration.
 6. Web state architecture and shadcn/Base UI conversation interface.
-7. Sandbox boundary, end-to-end fake flow, documentation, and final hardening.
+7. Sandbox boundary, secret resolver, OpenSandbox Credential Vault adapter,
+   end-to-end fake flow, documentation, and final hardening.
