@@ -2,6 +2,8 @@
 
 A batteries-included, opinionated TypeScript template for CRUD applications that also run long-lived AI agents. The example domain—projects, tasks, conversations, and agent sessions—is deliberately generic. Replace it while keeping the interfaces, dependency direction, durable command model, and security boundaries.
 
+The monorepo uses pnpm 10 for workspace and dependency management, Turborepo 2 for package task orchestration and caching, Oxlint for fast code linting, and TypeScript 7 for repository-wide type safety. These versions are pinned in the root manifest and lockfile.
+
 ## Run it
 
 Requirements: Docker Desktop. For host development, also install Node 26 and pnpm 10.23.
@@ -21,6 +23,8 @@ pnpm install
 pnpm db:migrate
 pnpm dev
 ```
+
+`pnpm dev` loads the optional root `.env` and starts persistent application tasks through Turborepo. `pnpm build` runs the dependency-aware, cached Turbo build graph.
 
 The CLI uses the same API through Device Authorization. On macOS it stores the bearer token in Keychain; other platforms use an owner-only `0600` file under the user config directory.
 

@@ -30,6 +30,8 @@ interfaces before opening `internal/` implementations.
 - Types: `pnpm typecheck`
 - Architecture: `pnpm architecture:check`
 - Full: `pnpm guardrails`
+- Cached package build graph: `pnpm build`
+- Inspect Turbo scheduling: `pnpm exec turbo run build --dry=json`
 - Local stack: `pnpm compose:up`
 
 Do not claim a check passed unless you ran it in the current change.

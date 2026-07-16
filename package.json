@@ -8,8 +8,8 @@
     "node": ">=26"
   },
   "scripts": {
-    "dev": "sh -c 'set -a; [ ! -f .env ] || . ./.env; set +a; pnpm -r --parallel --if-present dev'",
-    "build": "pnpm -r --if-present build",
+    "dev": "sh -c 'set -a; [ ! -f .env ] || . ./.env; set +a; turbo run dev'",
+    "build": "turbo run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit --pretty false",
