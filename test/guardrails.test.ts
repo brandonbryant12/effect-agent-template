@@ -70,6 +70,7 @@ describe("repository guardrail contract", () => {
       expect(workflow).toContain(path);
     }
     expect(workflow).toContain("RUN_POSTGRES_TESTS");
+    expect(workflow).toContain("--no-file-parallelism");
     expect(workflow).not.toMatch(/^\s*- run: pnpm template:check\s*$/m);
   });
 
@@ -77,14 +78,19 @@ describe("repository guardrail contract", () => {
     const manifest = JSON.parse(
       await readFile(resolve(root, "package.json"), "utf8"),
     ) as { packageManager?: string };
-    const dockerfile = await readFile(resolve(root, "Dockerfile"), "utf8");
     const pnpmVersion = manifest.packageManager?.match(/^pnpm@(.+)$/)?.[1];
 
     expect(pnpmVersion).toBeDefined();
-    expect(dockerfile).not.toContain("corepack");
-    expect(dockerfile).toContain(`ARG PNPM_VERSION=${pnpmVersion}`);
-    expect(
-      dockerfile.match(/RUN npm install --global "pnpm@\$\{PNPM_VERSION\}"/g),
-    ).toHaveLength(2);
+    for (const [path, installCount] of [
+      ["Dockerfile", 2],
+      ["apps/web/Dockerfile", 1],
+    ] as const) {
+      const dockerfile = await readFile(resolve(root, path), "utf8");
+      expect(dockerfile).not.toContain("corepack");
+      expect(dockerfile).toContain(`ARG PNPM_VERSION=${pnpmVersion}`);
+      expect(
+        dockerfile.match(/RUN npm install --global "pnpm@\$\{PNPM_VERSION\}"/g),
+      ).toHaveLength(installCount);
+    }
   });
 });
