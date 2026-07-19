@@ -8,11 +8,20 @@ colors:
   panel: "#FFFFFF"
   panel-muted: "#E8EFF1"
   blueprint: "#325F73"
+  blueprint-strong: "#284E5E"
   primary: "#325F73"
   blueprint-foreground: "#FFFFFF"
   signal: "#C64F36"
+  signal-strong: "#AD402B"
   signal-foreground: "#FFFFFF"
   border: "#C8D6DB"
+  line: "#C8D6DB"
+  line-soft: "#D5E0E4"
+  line-strong: "#B6C8CF"
+  mist: "#8EA9B4"
+  ink-muted: "#5D727A"
+  ink-subtle: "#65787F"
+  surface-raised: "#F8FAFB"
   success: "#2F7D65"
   warning: "#A86618"
   destructive: "#B83A3A"
@@ -111,6 +120,50 @@ components:
     typography: "{typography.utility}"
     rounded: "{rounded.sm}"
     padding: 4px
+  button-primary-hover:
+    backgroundColor: "{colors.blueprint-strong}"
+    textColor: "{colors.blueprint-foreground}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: 8px
+  button-signal-hover:
+    backgroundColor: "{colors.signal-strong}"
+    textColor: "{colors.signal-foreground}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: 8px
+  ledger-divider:
+    backgroundColor: "{colors.line}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: 4px
+  ledger-divider-soft:
+    backgroundColor: "{colors.line-soft}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: 4px
+  ledger-divider-dashed:
+    backgroundColor: "{colors.line-strong}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: 4px
+  utility-caption:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.ink-muted}"
+    typography: "{typography.utility}"
+    rounded: "{rounded.sm}"
+    padding: 4px
+  utility-caption-subtle:
+    backgroundColor: "{colors.panel}"
+    textColor: "{colors.ink-subtle}"
+    typography: "{typography.utility}"
+    rounded: "{rounded.sm}"
+    padding: 4px
+  hover-affordance:
+    backgroundColor: "{colors.mist}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    padding: 8px
 ---
 
 ## Product thesis

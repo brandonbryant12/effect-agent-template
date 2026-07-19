@@ -28,51 +28,51 @@ export const LoginPanel = () => {
   };
 
   return (
-    <main className="grid min-h-screen bg-[#f3f6f7] lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="relative hidden overflow-hidden border-r border-[#c8d6db] p-12 lg:flex lg:flex-col lg:justify-between">
+    <main className="grid min-h-screen bg-blueprint-paper lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="relative hidden overflow-hidden border-r border-line p-12 lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 ledger-grid opacity-60" />
-        <div className="relative flex items-center gap-3 font-mono text-xs uppercase tracking-[0.14em] text-[#325f73]">
+        <div className="relative flex items-center gap-3 font-mono text-xs uppercase tracking-[0.14em] text-blueprint">
           <Orbit className="size-4" /> Agent Ledger / reference template
         </div>
         <div className="relative max-w-xl">
-          <p className="mb-5 font-mono text-xs uppercase tracking-[0.16em] text-[#c64f36]">
+          <p className="mb-5 font-mono text-xs uppercase tracking-[0.16em] text-signal">
             Durable work, visible state
           </p>
-          <h1 className="text-balance text-6xl font-semibold leading-[0.96] tracking-[-0.055em] text-[#16252d]">
+          <h1 className="text-balance text-6xl font-semibold leading-[0.96] tracking-[-0.055em] text-ink">
             Give every agent run a paper trail.
           </h1>
-          <p className="mt-7 max-w-lg text-lg leading-8 text-[#49616b]">
+          <p className="mt-7 max-w-lg text-lg leading-8 text-ink-muted">
             Projects, tasks, sessions, approvals, and sandbox activity share one
             typed record—from browser or CLI.
           </p>
         </div>
-        <div className="relative grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-[#c8d6db] bg-[#c8d6db] text-xs">
+        <div className="relative grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-line bg-line text-xs">
           {[
             ["AUTH", "Better Auth"],
             ["RUNTIME", "OpenCode"],
             ["STATE", "Postgres"],
           ].map(([label, value]) => (
             <div className="bg-white/80 p-4" key={label}>
-              <div className="font-mono text-[10px] tracking-widest text-[#6b8189]">
+              <div className="font-mono text-[10px] tracking-widest text-ink-subtle">
                 {label}
               </div>
-              <div className="mt-1 font-medium text-[#16252d]">{value}</div>
+              <div className="mt-1 font-medium text-ink">{value}</div>
             </div>
           ))}
         </div>
       </section>
       <section className="flex items-center justify-center p-6">
         <form
-          className="w-full max-w-sm rounded-xl border border-[#c8d6db] bg-white p-7 shadow-[0_20px_70px_rgba(50,95,115,0.12)]"
+          className="w-full max-w-sm rounded-xl border border-line bg-white p-7 shadow-[0_20px_70px_rgba(50,95,115,0.12)]"
           onSubmit={submit}
         >
-          <div className="mb-7 flex size-10 items-center justify-center rounded-lg bg-[#325f73] text-white">
+          <div className="mb-7 flex size-10 items-center justify-center rounded-lg bg-blueprint text-white">
             <Fingerprint className="size-5" />
           </div>
-          <h2 className="text-2xl font-semibold tracking-tight text-[#16252d]">
+          <h2 className="text-2xl font-semibold tracking-tight text-ink">
             {mode === "sign-in" ? "Open your ledger" : "Create your ledger"}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-[#637981]">
+          <p className="mt-2 text-sm leading-6 text-ink-muted">
             Local development uses email and password. Production adapters can
             add your preferred identity provider.
           </p>
@@ -100,7 +100,7 @@ export const LoginPanel = () => {
             </p>
           )}
           <Button
-            className="mt-5 w-full bg-[#325f73] hover:bg-[#284e5e]"
+            className="mt-5 w-full bg-blueprint hover:bg-blueprint-strong"
             disabled={pending}
           >
             {pending
@@ -110,7 +110,7 @@ export const LoginPanel = () => {
                 : "Create account"}
           </Button>
           <button
-            className="mt-4 w-full text-sm text-[#325f73] underline-offset-4 hover:underline"
+            className="mt-4 w-full text-sm text-blueprint underline-offset-4 hover:underline"
             onClick={() => setMode(mode === "sign-in" ? "create" : "sign-in")}
             type="button"
           >

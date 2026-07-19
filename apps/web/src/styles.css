@@ -5,6 +5,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * DESIGN.md palette. Application code uses these named utilities
+ * (text-blueprint, border-line, bg-signal, ...) — never raw hex values.
+ * A drift test asserts every DESIGN.md token hex appears in this file.
+ */
+@theme {
+  --color-blueprint: #325f73;
+  --color-blueprint-strong: #284e5e;
+  --color-blueprint-paper: #f3f6f7;
+  --color-ink: #16252d;
+  --color-ink-muted: #5d727a;
+  --color-ink-subtle: #65787f;
+  --color-code: #243941;
+  --color-line: #c8d6db;
+  --color-line-soft: #d5e0e4;
+  --color-line-strong: #b6c8cf;
+  --color-mist: #8ea9b4;
+  --color-surface-raised: #f8fafb;
+  --color-panel: #ffffff;
+  --color-panel-muted: #e8eff1;
+  --color-signal: #c64f36;
+  --color-signal-strong: #ad402b;
+  --color-success: #2f7d65;
+  --color-warning: #a86618;
+}
+
 :root {
   font-family: "Geist Variable", "Avenir Next", system-ui, sans-serif;
   --background: #f3f6f7;
@@ -18,7 +44,7 @@
   --secondary: #e8eff1;
   --secondary-foreground: #16252d;
   --muted: #e8eff1;
-  --muted-foreground: #637981;
+  --muted-foreground: #5d727a;
   --accent: #dce8ec;
   --accent-foreground: #16252d;
   --destructive: #b83a3a;

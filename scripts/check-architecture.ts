@@ -73,6 +73,16 @@ for (const file of files) {
     violations.push(`${path}: imports Base UI outside packages/ui`);
   }
   if (
+    !isTest &&
+    /#[0-9a-fA-F]{6}\b/.test(source) &&
+    path.startsWith("apps/web/src/") &&
+    !path.startsWith("apps/web/src/components/")
+  ) {
+    violations.push(
+      `${path}: hardcodes a hex color (use the DESIGN.md token utilities from styles.css)`,
+    );
+  }
+  if (
     /from\s+["'](?:radix-ui|cmdk)["']/.test(source) &&
     !path.startsWith("apps/web/src/components/ui/") &&
     !path.startsWith("packages/ui/")

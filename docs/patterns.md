@@ -123,8 +123,12 @@ agreement, no duplicate method+path, matcher round-trips).
 - Base UI is imported only inside `packages/ui`; `radix-ui`/`cmdk` only
   inside the vendored `apps/web/src/components/ui/` directory or
   `packages/ui` (**enforced**).
-- Visual tokens come from `apps/web/DESIGN.md`; update the contract and the
-  code in the same change.
+- Visual tokens come from `apps/web/DESIGN.md`, are declared as Tailwind
+  `@theme` colors in `src/styles.css`, and are used as named utilities
+  (`text-blueprint`, `border-line`). Hex literals in non-vendored web code
+  are rejected (**enforced**), and `src/design-tokens.test.ts` fails when
+  DESIGN.md and the CSS theme drift apart. Update the contract and the code
+  in the same change.
 
 ## Testing
 
