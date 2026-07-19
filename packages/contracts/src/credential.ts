@@ -43,3 +43,9 @@ export const PendingCredentialUpload = Schema.Struct({
   upload: CredentialUpload,
 });
 export type PendingCredentialUpload = typeof PendingCredentialUpload.Type;
+
+export const BeginCredentialUpload = Schema.Struct({
+  provider: CredentialProvider,
+  label: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(120)),
+});
+export type BeginCredentialUpload = typeof BeginCredentialUpload.Type;

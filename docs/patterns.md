@@ -82,21 +82,27 @@ from the Effect context. When adding a provider:
 
 ## HTTP surface
 
-The route contract currently lives in three places that must change together
-(**review** — until the route table is unified):
+`ApiRoutes` in `packages/contracts/src/http.ts` is the single authority for
+the public API: method, path template, branded param schemas, request and
+response schemas, and success status. The server router iterates the table
+and dispatches to an exhaustive handler map; the Effect client builds every
+request from the same definitions. To add an endpoint:
 
-1. `apps/server/src/api.ts` — path match, schema decode, handler call.
-2. `packages/client/src/client.ts` — the Effect client method.
-3. `packages/client/src/promise.ts` — the Promise facade delegation.
+1. Add request/response schemas to the owning `packages/contracts` module.
+2. Add the route to `ApiRoutes` — the server now fails to compile until a
+   handler exists in `apps/server/src/api.ts` (`RouteHandlers` is keyed by
+   `RouteName`).
+3. Write the handler: it receives schema-decoded `params` and `body`.
+4. Add a client method in `packages/client/src/client.ts` using
+   `buildPath(ApiRoutes.<name>, params)` and the route's schemas, and expose
+   it through the Promise facade (`promise.ts`).
+5. Add an `errorStatus` entry in `apps/server/src/api.ts` for every new
+   tagged error the handler can surface. Unknown tags intentionally become 500.
+6. Add a query/mutation option factory in `packages/client-react` when the
+   web app consumes the endpoint.
 
-Adding or changing an endpoint also requires:
-
-- Request/response schemas defined in `packages/contracts`, imported by both
-  sides — never re-declared inline in the client.
-- A `errorStatus` entry in `apps/server/src/api.ts` for every new tagged
-  error a handler can surface. Unknown tags intentionally become 500.
-- A query/mutation option factory in `packages/client-react` when the web
-  app consumes the endpoint.
+`packages/contracts/test/http.test.ts` guards table integrity (param/token
+agreement, no duplicate method+path, matcher round-trips).
 
 ## Configuration
 
@@ -131,8 +137,7 @@ TestLayer))` and the deterministic doubles; no timing sleeps.
 These are accepted gaps — do not "fix" them incidentally, and do not copy
 them into new code as precedent:
 
-- The hand-written HTTP router and triple-declared route contract should
-  eventually collapse into one shared table (or `@effect/platform` HttpApi).
 - Provider ports may later move onto `Context.Service` layers for symmetric
   wiring with `packages/core`.
-- Live layers may later take time from `Clock` instead of `new Date()`.
+- The hand-written node:http bootstrap in server and broker may later move
+  to a shared helper or `@effect/platform` HttpServer.

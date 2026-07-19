@@ -1,20 +1,13 @@
 import type { Principal } from "@repo/auth";
+import { CommandId } from "@repo/contracts";
 import {
-  AgentRunId,
-  AgentSessionId,
-  CommandId,
-  ConversationId,
-  CreateConversation,
-  CreateProject,
-  CreateTask,
-  CredentialId,
-  CredentialProvider,
-  ApprovalDecision,
-  ApprovalId,
-  ProjectId,
-  TaskId,
-  TaskStatus,
-} from "@repo/contracts";
+  ApiRoutes,
+  decodeParams,
+  matchPath,
+  type RouteName,
+  type RouteParams,
+  type RouteRequest,
+} from "@repo/contracts/http";
 import {
   AgentRunService,
   ApprovalService,
@@ -72,16 +65,6 @@ const statusFor = (error: unknown): number =>
     ? (errorStatus[String(error._tag)] ?? 500)
     : 500;
 
-const body = async <S extends Schema.ConstraintDecoder<unknown, never>>(
-  request: Request,
-  schema: S,
-): Promise<S["Type"]> => Schema.decodeUnknownSync(schema)(await request.json());
-
-const decode = <S extends Schema.ConstraintDecoder<unknown, never>>(
-  schema: S,
-  value: unknown,
-): S["Type"] => Schema.decodeUnknownSync(schema)(value);
-
 const withCors = (response: Response, origin: string, allowed: string) => {
   const next = new Response(response.body, response);
   if (origin === allowed) {
@@ -101,9 +84,161 @@ const withCors = (response: Response, origin: string, allowed: string) => {
   return next;
 };
 
-export const makeApiHandler =
-  (services: ApiServices) =>
-  async (request: Request): Promise<Response> => {
+interface AuthScope {
+  readonly tenantId: Principal["tenantId"];
+  readonly userId: Principal["userId"];
+}
+
+interface RouteContext<K extends RouteName> {
+  readonly scope: AuthScope;
+  readonly params: RouteParams<(typeof ApiRoutes)[K]>;
+  readonly body: RouteRequest<(typeof ApiRoutes)[K]>;
+  readonly request: Request;
+  readonly url: URL;
+}
+
+/**
+ * One handler per route in the shared table. `RouteName` keys make this map
+ * exhaustive: adding a route to ApiRoutes without a handler here is a
+ * compile error.
+ */
+type RouteHandlers = {
+  readonly [K in RouteName]: (context: RouteContext<K>) => Promise<Response>;
+};
+
+interface DispatchContext {
+  readonly scope: AuthScope;
+  readonly params: unknown;
+  readonly body: unknown;
+  readonly request: Request;
+  readonly url: URL;
+}
+
+export const makeApiHandler = (services: ApiServices) => {
+  const run = <A>(effect: Effect.Effect<A, unknown>) =>
+    Effect.runPromise(effect);
+
+  const handlers: RouteHandlers = {
+    listProjects: async ({ scope }) =>
+      json(await run(services.projects.list(scope))),
+    createProject: async ({ scope, body }) =>
+      json(await run(services.projects.create(scope, body)), 201),
+    getProject: async ({ scope, params }) =>
+      json(await run(services.projects.get(scope, params.projectId))),
+    updateProject: async ({ scope, params, body }) =>
+      json(await run(services.projects.update(scope, params.projectId, body))),
+    deleteProject: async ({ scope, params }) => {
+      await run(services.projects.remove(scope, params.projectId));
+      return new Response(null, { status: 204 });
+    },
+    listTasks: async ({ scope, params }) =>
+      json(await run(services.tasks.listByProject(scope, params.projectId))),
+    createTask: async ({ scope, params, body }) =>
+      json(
+        await run(
+          services.tasks.create(scope, {
+            ...body,
+            projectId: params.projectId,
+          }),
+        ),
+        201,
+      ),
+    transitionTask: async ({ scope, params, body }) =>
+      json(
+        await run(services.tasks.transition(scope, params.taskId, body.status)),
+      ),
+    createConversation: async ({ scope, body }) =>
+      json(await run(services.conversations.create(scope, body)), 201),
+    createSession: async ({ scope, body }) =>
+      json(
+        await run(
+          services.sessions.create(scope, {
+            ...body,
+            credentialIds: body.credentialIds ?? [],
+          }),
+        ),
+        201,
+      ),
+    getSession: async ({ scope, params }) =>
+      json(await run(services.sessions.get(scope, params.sessionId))),
+    startRun: async ({ scope, params, body, request }) => {
+      const commandId = Schema.decodeUnknownSync(CommandId)(
+        request.headers.get("idempotency-key"),
+      );
+      return json(
+        await run(
+          services.runs.admit(scope, {
+            ...body,
+            commandId,
+            sessionId: params.sessionId,
+          }),
+        ),
+        202,
+      );
+    },
+    getRun: async ({ scope, params }) =>
+      json(await run(services.runs.get(scope, params.runId))),
+    cancelRun: async ({ scope, params }) =>
+      json(await run(services.approvals.cancelRun(scope, params.runId))),
+    streamRunEvents: async ({ scope, params, request, url }) => {
+      const after = Number(
+        request.headers.get("last-event-id") ??
+          url.searchParams.get("after") ??
+          "0",
+      );
+      const values = await run(
+        services.runs.events(
+          scope,
+          params.runId,
+          Number.isSafeInteger(after) ? after : 0,
+        ),
+      );
+      const stream = values
+        .map(
+          (event) =>
+            `id: ${event.sequence}\nevent: run-event\ndata: ${JSON.stringify(event)}\n\n`,
+        )
+        .join("");
+      return new Response(stream, {
+        headers: {
+          "content-type": "text/event-stream",
+          "cache-control": "no-cache, no-store",
+          connection: "keep-alive",
+        },
+      });
+    },
+    getApproval: async ({ scope, params }) =>
+      json(await run(services.approvals.get(scope, params.approvalId))),
+    replyApproval: async ({ scope, params, body }) =>
+      json(
+        await run(
+          services.approvals.resolve(scope, params.approvalId, body.decision),
+        ),
+      ),
+    beginCredentialUpload: async ({ scope, body }) => {
+      const credential = await run(
+        services.credentials.createPending(scope, body),
+      );
+      const intent = await run(services.uploads.issue(scope, credential.id));
+      return json(
+        {
+          credential,
+          upload: {
+            url: `${services.credentialBrokerUrl}/v1/credential-uploads`,
+            token: intent.token,
+            expiresAt: intent.expiresAt.toISOString(),
+          },
+        },
+        201,
+      );
+    },
+    getCredential: async ({ scope, params }) =>
+      json(await run(services.credentials.get(scope, params.credentialId))),
+  };
+
+  const routeNames = Object.keys(ApiRoutes) as ReadonlyArray<RouteName>;
+
+  return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     const origin = request.headers.get("origin") ?? "";
     const respond = (response: Response) =>
@@ -115,7 +250,7 @@ export const makeApiHandler =
     }
     if (url.pathname === "/readyz") {
       try {
-        await Effect.runPromise(services.readiness);
+        await run(services.readiness);
         return respond(json({ status: "ready" }));
       } catch {
         return respond(json({ status: "unavailable" }, 503));
@@ -130,299 +265,33 @@ export const makeApiHandler =
 
     let principal: Principal;
     try {
-      principal = await Effect.runPromise(
-        services.authenticate(request.headers),
-      );
+      principal = await run(services.authenticate(request.headers));
     } catch {
       return respond(json({ error: "unauthorized" }, 401));
     }
     const scope = { tenantId: principal.tenantId, userId: principal.userId };
+    const subPath = url.pathname.slice("/api/v1".length);
 
     try {
-      if (url.pathname === "/api/v1/projects" && request.method === "GET") {
-        return respond(
-          json(await Effect.runPromise(services.projects.list(scope))),
-        );
-      }
-      if (url.pathname === "/api/v1/projects" && request.method === "POST") {
-        const input = await body(request, CreateProject);
-        return respond(
-          json(
-            await Effect.runPromise(services.projects.create(scope, input)),
-            201,
-          ),
-        );
-      }
-      const project = url.pathname.match(/^\/api\/v1\/projects\/([^/]+)$/);
-      if (project) {
-        const id = decode(ProjectId, project[1]);
-        if (request.method === "GET") {
-          return respond(
-            json(await Effect.runPromise(services.projects.get(scope, id))),
-          );
-        }
-        if (request.method === "PATCH") {
-          const input = await body(request, CreateProject);
-          return respond(
-            json(
-              await Effect.runPromise(
-                services.projects.update(scope, id, input),
-              ),
-            ),
-          );
-        }
-        if (request.method === "DELETE") {
-          await Effect.runPromise(services.projects.remove(scope, id));
-          return respond(new Response(null, { status: 204 }));
-        }
-      }
-      const projectTasks = url.pathname.match(
-        /^\/api\/v1\/projects\/([^/]+)\/tasks$/,
-      );
-      if (projectTasks) {
-        const projectId = decode(ProjectId, projectTasks[1]);
-        if (request.method === "GET") {
-          return respond(
-            json(
-              await Effect.runPromise(
-                services.tasks.listByProject(scope, projectId),
-              ),
-            ),
-          );
-        }
-        if (request.method === "POST") {
-          const payload = await request.json();
-          const input = decode(CreateTask, {
-            ...(payload as object),
-            projectId,
-          });
-          return respond(
-            json(
-              await Effect.runPromise(services.tasks.create(scope, input)),
-              201,
-            ),
-          );
-        }
-      }
-      const taskTransition = url.pathname.match(
-        /^\/api\/v1\/tasks\/([^/]+)\/transition$/,
-      );
-      if (taskTransition && request.method === "POST") {
-        const taskId = decode(TaskId, taskTransition[1]);
-        const transition = await body(
-          request,
-          Schema.Struct({ status: TaskStatus }),
-        );
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.tasks.transition(scope, taskId, transition.status),
-            ),
-          ),
-        );
-      }
-      if (
-        url.pathname === "/api/v1/conversations" &&
-        request.method === "POST"
-      ) {
-        const input = await body(request, CreateConversation);
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.conversations.create(scope, input),
-            ),
-            201,
-          ),
-        );
-      }
-      if (url.pathname === "/api/v1/sessions" && request.method === "POST") {
-        const input = await body(
-          request,
-          Schema.Struct({
-            projectId: ProjectId,
-            conversationId: ConversationId,
-            credentialIds: Schema.optionalKey(Schema.Array(CredentialId)),
-          }),
-        );
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.sessions.create(scope, {
-                ...input,
-                credentialIds: input.credentialIds ?? [],
-              }),
-            ),
-            201,
-          ),
-        );
-      }
-      const session = url.pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/);
-      if (session && request.method === "GET") {
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.sessions.get(scope, decode(AgentSessionId, session[1])),
-            ),
-          ),
-        );
-      }
-      const startRun = url.pathname.match(
-        /^\/api\/v1\/sessions\/([^/]+)\/runs$/,
-      );
-      if (startRun && request.method === "POST") {
-        const commandId = decode(
-          CommandId,
-          request.headers.get("idempotency-key"),
-        );
-        const input = await body(
-          request,
-          Schema.Struct({
-            projectId: ProjectId,
-            conversationId: ConversationId,
-            taskId: Schema.NullOr(TaskId),
-            prompt: Schema.String.check(
-              Schema.isMinLength(1),
-              Schema.isMaxLength(100_000),
-            ),
-          }),
-        );
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.runs.admit(scope, {
-                ...input,
-                commandId,
-                sessionId: decode(AgentSessionId, startRun[1]),
-              }),
-            ),
-            202,
-          ),
-        );
-      }
-      const run = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)$/);
-      if (run && request.method === "GET") {
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.runs.get(scope, decode(AgentRunId, run[1])),
-            ),
-          ),
-        );
-      }
-      const cancelRun = url.pathname.match(
-        /^\/api\/v1\/runs\/([^/]+)\/cancel$/,
-      );
-      if (cancelRun && request.method === "POST") {
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.approvals.cancelRun(
-                scope,
-                decode(AgentRunId, cancelRun[1]),
-              ),
-            ),
-          ),
-        );
-      }
-      const approval = url.pathname.match(/^\/api\/v1\/approvals\/([^/]+)$/);
-      if (approval && request.method === "GET") {
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.approvals.get(scope, decode(ApprovalId, approval[1])),
-            ),
-          ),
-        );
-      }
-      const approvalReply = url.pathname.match(
-        /^\/api\/v1\/approvals\/([^/]+)\/reply$/,
-      );
-      if (approvalReply && request.method === "POST") {
-        const input = await body(
-          request,
-          Schema.Struct({ decision: ApprovalDecision }),
-        );
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.approvals.resolve(
-                scope,
-                decode(ApprovalId, approvalReply[1]),
-                input.decision,
-              ),
-            ),
-          ),
-        );
-      }
-      const events = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)\/events$/);
-      if (events && request.method === "GET") {
-        const after = Number(
-          request.headers.get("last-event-id") ??
-            url.searchParams.get("after") ??
-            "0",
-        );
-        const values = await Effect.runPromise(
-          services.runs.events(
-            scope,
-            decode(AgentRunId, events[1]),
-            Number.isSafeInteger(after) ? after : 0,
-          ),
-        );
-        const stream = values
-          .map(
-            (event) =>
-              `id: ${event.sequence}\nevent: run-event\ndata: ${JSON.stringify(event)}\n\n`,
-          )
-          .join("");
-        return respond(
-          new Response(stream, {
-            headers: {
-              "content-type": "text/event-stream",
-              "cache-control": "no-cache, no-store",
-              connection: "keep-alive",
-            },
-          }),
-        );
-      }
-      if (url.pathname === "/api/v1/credentials" && request.method === "POST") {
-        const input = await body(
-          request,
-          Schema.Struct({ provider: CredentialProvider, label: Schema.String }),
-        );
-        const credential = await Effect.runPromise(
-          services.credentials.createPending(scope, input),
-        );
-        const intent = await Effect.runPromise(
-          services.uploads.issue(scope, credential.id),
-        );
-        return respond(
-          json(
-            {
-              credential,
-              upload: {
-                url: `${services.credentialBrokerUrl}/v1/credential-uploads`,
-                token: intent.token,
-                expiresAt: intent.expiresAt.toISOString(),
-              },
-            },
-            201,
-          ),
-        );
-      }
-      const credential = url.pathname.match(
-        /^\/api\/v1\/credentials\/([^/]+)$/,
-      );
-      if (credential && request.method === "GET") {
-        return respond(
-          json(
-            await Effect.runPromise(
-              services.credentials.get(
-                scope,
-                decode(CredentialId, credential[1]),
-              ),
-            ),
-          ),
-        );
+      for (const name of routeNames) {
+        const definition = ApiRoutes[name];
+        if (definition.method !== request.method) continue;
+        const raw = matchPath(definition, subPath);
+        if (raw === null) continue;
+        const params = decodeParams(definition, raw);
+        const body =
+          definition.request === undefined
+            ? undefined
+            : Schema.decodeUnknownSync(definition.request)(
+                await request.json(),
+              );
+        // The handler map is precisely typed per route; the dispatcher calls
+        // through one widened signature after decoding params and body with
+        // that route's own schemas.
+        const handler = handlers[name] as unknown as (
+          context: DispatchContext,
+        ) => Promise<Response>;
+        return respond(await handler({ scope, params, body, request, url }));
       }
       return respond(json({ error: "not_found" }, 404));
     } catch (error) {
@@ -432,3 +301,4 @@ export const makeApiHandler =
       return respond(json({ error: "request_failed" }, statusFor(error)));
     }
   };
+};

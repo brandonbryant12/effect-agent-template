@@ -13,7 +13,8 @@
     "./agent-session": "./src/agent-session.ts",
     "./approval": "./src/approval.ts",
     "./common": "./src/common.ts",
-    "./credential": "./src/credential.ts"
+    "./credential": "./src/credential.ts",
+    "./http": "./src/http.ts"
   },
   "dependencies": {
     "effect": "catalog:"

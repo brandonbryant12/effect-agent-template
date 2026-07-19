@@ -29,4 +29,13 @@ export const CreateTask = Schema.Struct({
 });
 export type CreateTask = typeof CreateTask.Type;
 
+export const CreateTaskBody = Schema.Struct({
+  title: Name,
+  description: Description,
+});
+export type CreateTaskBody = typeof CreateTaskBody.Type;
+
+export const TransitionTask = Schema.Struct({ status: TaskStatus });
+export type TransitionTask = typeof TransitionTask.Type;
+
 export const decodeTask = Schema.decodeUnknownSync(Task);

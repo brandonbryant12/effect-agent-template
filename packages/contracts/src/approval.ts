@@ -23,3 +23,6 @@ export const ApprovalRequest = Schema.Struct({
   resolvedAt: Schema.NullOr(Timestamp),
 });
 export type ApprovalRequest = typeof ApprovalRequest.Type;
+
+export const ReplyApproval = Schema.Struct({ decision: ApprovalDecision });
+export type ReplyApproval = typeof ReplyApproval.Type;

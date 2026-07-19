@@ -1,173 +1,162 @@
-import {
-  AgentRun,
-  AgentRunEvent,
-  AgentSession,
-  Conversation,
+import type {
+  AgentRunId,
+  AgentSessionId,
+  ApprovalDecision,
+  ApprovalId,
+  CommandId,
+  CreateAgentSession,
+  CreateConversation,
+  CreateProject,
+  CreateTaskBody,
   Credential,
-  PendingCredentialUpload,
-  ApprovalRequest,
-  Project,
-  Task,
-  type AgentRunId,
-  type AgentSessionId,
-  type ApprovalDecision,
-  type ApprovalId,
-  type CommandId,
-  type ConversationId,
-  type CreateConversation,
-  type CreateProject,
-  type CredentialProvider,
-  type ProjectId,
-  type TaskId,
-  type TaskStatus,
+  BeginCredentialUpload,
+  ProjectId,
+  StartAgentRun,
+  TaskId,
+  TaskStatus,
 } from "@repo/contracts";
-import { Schema } from "effect";
+import { ApiRoutes, buildPath } from "@repo/contracts/http";
 import type { ClientTransport } from "./transport.js";
 
+/**
+ * Every method resolves its route from the shared ApiRoutes table, so the
+ * client can never drift from the server's paths, methods, or schemas.
+ */
 export const createAgentClient = (transport: ClientTransport) => ({
   projects: {
     list: () =>
       transport.execute({
-        method: "GET",
-        path: "/projects",
-        schema: Schema.Array(Project),
+        method: ApiRoutes.listProjects.method,
+        path: ApiRoutes.listProjects.path,
+        schema: ApiRoutes.listProjects.response,
       }),
     create: (input: CreateProject) =>
       transport.execute({
-        method: "POST",
-        path: "/projects",
-        schema: Project,
+        method: ApiRoutes.createProject.method,
+        path: ApiRoutes.createProject.path,
+        schema: ApiRoutes.createProject.response,
         body: input,
       }),
     get: (projectId: ProjectId) =>
       transport.execute({
-        method: "GET",
-        path: `/projects/${encodeURIComponent(projectId)}`,
-        schema: Project,
+        method: ApiRoutes.getProject.method,
+        path: buildPath(ApiRoutes.getProject, { projectId }),
+        schema: ApiRoutes.getProject.response,
       }),
     update: (projectId: ProjectId, input: CreateProject) =>
       transport.execute({
-        method: "PATCH",
-        path: `/projects/${encodeURIComponent(projectId)}`,
-        schema: Project,
+        method: ApiRoutes.updateProject.method,
+        path: buildPath(ApiRoutes.updateProject, { projectId }),
+        schema: ApiRoutes.updateProject.response,
         body: input,
       }),
   },
   tasks: {
     list: (projectId: ProjectId) =>
       transport.execute({
-        method: "GET",
-        path: `/projects/${encodeURIComponent(projectId)}/tasks`,
-        schema: Schema.Array(Task),
+        method: ApiRoutes.listTasks.method,
+        path: buildPath(ApiRoutes.listTasks, { projectId }),
+        schema: ApiRoutes.listTasks.response,
       }),
-    create: (
-      projectId: ProjectId,
-      input: { readonly title: string; readonly description: string | null },
-    ) =>
+    create: (projectId: ProjectId, input: CreateTaskBody) =>
       transport.execute({
-        method: "POST",
-        path: `/projects/${encodeURIComponent(projectId)}/tasks`,
-        schema: Task,
+        method: ApiRoutes.createTask.method,
+        path: buildPath(ApiRoutes.createTask, { projectId }),
+        schema: ApiRoutes.createTask.response,
         body: input,
       }),
     transition: (taskId: TaskId, status: TaskStatus) =>
       transport.execute({
-        method: "POST",
-        path: `/tasks/${encodeURIComponent(taskId)}/transition`,
-        schema: Task,
+        method: ApiRoutes.transitionTask.method,
+        path: buildPath(ApiRoutes.transitionTask, { taskId }),
+        schema: ApiRoutes.transitionTask.response,
         body: { status },
       }),
   },
   conversations: {
     create: (input: CreateConversation) =>
       transport.execute({
-        method: "POST",
-        path: "/conversations",
-        schema: Conversation,
+        method: ApiRoutes.createConversation.method,
+        path: ApiRoutes.createConversation.path,
+        schema: ApiRoutes.createConversation.response,
         body: input,
       }),
   },
   sessions: {
-    create: (input: {
-      readonly projectId: ProjectId;
-      readonly conversationId: ConversationId;
-      readonly credentialIds?: ReadonlyArray<Credential["id"]>;
-    }) =>
+    create: (input: CreateAgentSession) =>
       transport.execute({
-        method: "POST",
-        path: "/sessions",
-        schema: AgentSession,
+        method: ApiRoutes.createSession.method,
+        path: ApiRoutes.createSession.path,
+        schema: ApiRoutes.createSession.response,
         body: input,
       }),
     get: (sessionId: AgentSessionId) =>
       transport.execute({
-        method: "GET",
-        path: `/sessions/${encodeURIComponent(sessionId)}`,
-        schema: AgentSession,
+        method: ApiRoutes.getSession.method,
+        path: buildPath(ApiRoutes.getSession, { sessionId }),
+        schema: ApiRoutes.getSession.response,
       }),
   },
   runs: {
     start: (
       sessionId: AgentSessionId,
       commandId: CommandId,
-      input: {
-        readonly projectId: ProjectId;
-        readonly conversationId: ConversationId;
-        readonly taskId: TaskId | null;
-        readonly prompt: string;
-      },
+      input: StartAgentRun,
     ) =>
       transport.execute({
-        method: "POST",
-        path: `/sessions/${encodeURIComponent(sessionId)}/runs`,
-        schema: AgentRun,
+        method: ApiRoutes.startRun.method,
+        path: buildPath(ApiRoutes.startRun, { sessionId }),
+        schema: ApiRoutes.startRun.response,
         body: input,
         idempotencyKey: commandId,
       }),
+    get: (runId: AgentRunId) =>
+      transport.execute({
+        method: ApiRoutes.getRun.method,
+        path: buildPath(ApiRoutes.getRun, { runId }),
+        schema: ApiRoutes.getRun.response,
+      }),
     events: (runId: AgentRunId, after?: number) =>
       transport.events({
-        path: `/runs/${encodeURIComponent(runId)}/events`,
-        schema: AgentRunEvent,
+        path: buildPath(ApiRoutes.streamRunEvents, { runId }),
+        schema: ApiRoutes.streamRunEvents.response,
         ...(after === undefined ? {} : { after }),
       }),
     cancel: (runId: AgentRunId) =>
       transport.execute({
-        method: "POST",
-        path: `/runs/${encodeURIComponent(runId)}/cancel`,
-        schema: AgentRun,
+        method: ApiRoutes.cancelRun.method,
+        path: buildPath(ApiRoutes.cancelRun, { runId }),
+        schema: ApiRoutes.cancelRun.response,
       }),
   },
   approvals: {
     get: (approvalId: ApprovalId) =>
       transport.execute({
-        method: "GET",
-        path: `/approvals/${encodeURIComponent(approvalId)}`,
-        schema: ApprovalRequest,
+        method: ApiRoutes.getApproval.method,
+        path: buildPath(ApiRoutes.getApproval, { approvalId }),
+        schema: ApiRoutes.getApproval.response,
       }),
     reply: (approvalId: ApprovalId, decision: ApprovalDecision) =>
       transport.execute({
-        method: "POST",
-        path: `/approvals/${encodeURIComponent(approvalId)}/reply`,
-        schema: ApprovalRequest,
+        method: ApiRoutes.replyApproval.method,
+        path: buildPath(ApiRoutes.replyApproval, { approvalId }),
+        schema: ApiRoutes.replyApproval.response,
         body: { decision },
       }),
   },
   credentials: {
-    beginUpload: (input: {
-      readonly provider: CredentialProvider;
-      readonly label: string;
-    }) =>
+    beginUpload: (input: BeginCredentialUpload) =>
       transport.execute({
-        method: "POST",
-        path: "/credentials",
-        schema: PendingCredentialUpload,
+        method: ApiRoutes.beginCredentialUpload.method,
+        path: ApiRoutes.beginCredentialUpload.path,
+        schema: ApiRoutes.beginCredentialUpload.response,
         body: input,
       }),
     get: (credentialId: Credential["id"]) =>
       transport.execute({
-        method: "GET",
-        path: `/credentials/${encodeURIComponent(credentialId)}`,
-        schema: Credential,
+        method: ApiRoutes.getCredential.method,
+        path: buildPath(ApiRoutes.getCredential, { credentialId }),
+        schema: ApiRoutes.getCredential.response,
       }),
   },
 });

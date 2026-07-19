@@ -33,6 +33,17 @@ export const AgentRun = Schema.Struct({
 });
 export type AgentRun = typeof AgentRun.Type;
 
+export const StartAgentRun = Schema.Struct({
+  projectId: ProjectId,
+  conversationId: ConversationId,
+  taskId: Schema.NullOr(TaskId),
+  prompt: Schema.String.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(100_000),
+  ),
+});
+export type StartAgentRun = typeof StartAgentRun.Type;
+
 const durable = {
   protocolVersion: Schema.Literal(1),
   runId: AgentRunId,

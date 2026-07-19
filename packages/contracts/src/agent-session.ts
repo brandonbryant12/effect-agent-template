@@ -3,6 +3,7 @@ import { Timestamp } from "./common.js";
 import {
   AgentSessionId,
   ConversationId,
+  CredentialId,
   ProjectId,
   TenantId,
   UserId,
@@ -30,3 +31,10 @@ export const AgentSession = Schema.Struct({
   updatedAt: Timestamp,
 });
 export type AgentSession = typeof AgentSession.Type;
+
+export const CreateAgentSession = Schema.Struct({
+  projectId: ProjectId,
+  conversationId: ConversationId,
+  credentialIds: Schema.optionalKey(Schema.Array(CredentialId)),
+});
+export type CreateAgentSession = typeof CreateAgentSession.Type;
