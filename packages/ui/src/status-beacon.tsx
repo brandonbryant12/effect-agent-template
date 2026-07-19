@@ -20,17 +20,17 @@ export const StatusBeacon = ({
       <span
         className={
           tone === "ready"
-            ? "size-1.5 rounded-full bg-emerald-600"
+            ? "size-1.5 rounded-full bg-success"
             : tone === "working"
-              ? "size-1.5 rounded-full bg-amber-600"
-              : "size-1.5 rounded-full bg-red-700"
+              ? "size-1.5 rounded-full bg-warning"
+              : "size-1.5 rounded-full bg-destructive"
         }
       />
       {label}
     </Tooltip.Trigger>
     <Tooltip.Portal>
       <Tooltip.Positioner sideOffset={8}>
-        <Tooltip.Popup className="max-w-64 rounded-md bg-[#16252d] px-3 py-2 text-xs text-white shadow-lg data-ending-style:opacity-0 data-starting-style:opacity-0">
+        <Tooltip.Popup className="max-w-64 rounded-md bg-code px-3 py-2 text-xs text-panel shadow-lg data-ending-style:opacity-0 data-starting-style:opacity-0">
           {detail}
         </Tooltip.Popup>
       </Tooltip.Positioner>

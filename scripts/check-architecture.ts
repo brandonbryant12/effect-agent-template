@@ -42,6 +42,24 @@ export const sourceViolations = (
       `${path}: invents an empty persistence row instead of handling absence`,
     );
   }
+  const isOwnedUi =
+    path.startsWith("apps/web/src/") || path.startsWith("packages/ui/src/");
+  const isVendoredUi =
+    path.startsWith("apps/web/src/components/ui/") ||
+    path.startsWith("apps/web/src/components/ai-elements/");
+  if (
+    !isTest &&
+    isOwnedUi &&
+    !isVendoredUi &&
+    (/\b(?:bg|text|border|ring|fill|stroke)-(?:white|black|slate-\d+|gray-\d+|zinc-\d+|neutral-\d+|stone-\d+|red-\d+|orange-\d+|amber-\d+|yellow-\d+|lime-\d+|green-\d+|emerald-\d+|teal-\d+|cyan-\d+|sky-\d+|blue-\d+|indigo-\d+|violet-\d+|purple-\d+|fuchsia-\d+|pink-\d+|rose-\d+)\b/.test(
+      source,
+    ) ||
+      /\[[^\]]*(?:#[0-9a-f]{3,8}\b|rgba?\()/i.test(source))
+  ) {
+    found.push(
+      `${path}: uses a raw palette utility instead of a semantic design token`,
+    );
+  }
   return found;
 };
 

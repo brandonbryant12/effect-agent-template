@@ -39,7 +39,7 @@ const statusRing: Readonly<Record<GraphNodeRunStatus, string>> = {
 
 const NodeCard = ({ data }: { readonly data: NodeCardData }) => (
   <div
-    className={`min-w-32 rounded-md border bg-white px-3 py-2 text-left shadow-sm ${
+    className={`min-w-32 rounded-md border bg-panel px-3 py-2 text-left shadow-sm ${
       data.selected ? "border-blueprint" : "border-line"
     } ${data.status ? `ring-2 ${statusRing[data.status]}` : ""}`}
   >

@@ -23,4 +23,15 @@ describe("architecture source rules", () => {
       "packages/core/src/internal/example.ts: invents an empty persistence row instead of handling absence",
     );
   });
+
+  it("rejects raw palette utilities in owned UI source", () => {
+    expect(
+      sourceViolations(
+        "packages/ui/src/example.tsx",
+        '<div className="bg-red-50 text-white" />\n',
+      ),
+    ).toContain(
+      "packages/ui/src/example.tsx: uses a raw palette utility instead of a semantic design token",
+    );
+  });
 });

@@ -209,7 +209,7 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
             <button
               className={`rounded-md border px-2.5 py-1 text-xs ${
                 graph.id === selectedGraph?.id
-                  ? "border-blueprint bg-blueprint text-white"
+                  ? "border-blueprint bg-blueprint text-panel"
                   : "border-line text-ink-muted hover:border-mist"
               }`}
               key={graph.id}
@@ -276,7 +276,7 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
               Save graph
             </Button>
             {saveError && (
-              <span className="text-xs text-red-700">{saveError}</span>
+              <span className="text-xs text-destructive">{saveError}</span>
             )}
           </div>
 
@@ -299,7 +299,7 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
                 value={selectedNode.name}
               />
               <textarea
-                className="min-h-24 rounded-md border border-line bg-white p-2 text-xs"
+                className="min-h-24 rounded-md border border-line bg-panel p-2 text-xs"
                 onChange={(event) =>
                   edit((current) => ({
                     ...current,
@@ -326,7 +326,7 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
               disabled={runState.value === "starting"}
               onClick={() => void startRun()}
               size="sm"
-              className="bg-signal text-white hover:bg-signal-strong"
+              className="bg-signal text-panel hover:bg-signal-strong"
             >
               <Play className="size-3.5" /> Run graph
             </Button>

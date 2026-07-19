@@ -74,23 +74,31 @@ body {
 }
 
 ::selection {
-  background: #d6e5ea;
-  color: #16252d;
+  background: var(--accent);
+  color: var(--color-ink);
 }
 
 .ledger-grid {
   background-image:
-    linear-gradient(to right, rgb(50 95 115 / 0.09) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(50 95 115 / 0.09) 1px, transparent 1px);
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-blueprint) 9%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 32px 32px;
 }
 
 .session-tape {
   background-image: linear-gradient(
     90deg,
-    #ffffff 0%,
-    #f3f6f7 64%,
-    #e8eff1 100%
+    var(--color-panel) 0%,
+    var(--color-blueprint-paper) 64%,
+    var(--color-panel-muted) 100%
   );
 }
 
@@ -101,7 +109,7 @@ body {
   bottom: 1.5rem;
   left: 0.42rem;
   width: 1px;
-  background: #a8bec7;
+  background: var(--color-line-strong);
 }
 
 .event-spine {

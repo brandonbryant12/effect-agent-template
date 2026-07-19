@@ -21,4 +21,13 @@ describe("DESIGN.md token drift", () => {
       );
     }
   });
+
+  it("uses theme variables instead of raw colors in runtime rules", async () => {
+    const css = await readFile(resolve(root, "src/styles.css"), "utf8");
+    const runtimeRules = css.slice(
+      css.indexOf("body {"),
+      css.indexOf("@theme inline"),
+    );
+    expect(runtimeRules).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
 });

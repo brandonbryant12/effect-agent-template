@@ -52,7 +52,7 @@ export const LoginPanel = () => {
             ["RUNTIME", "OpenCode"],
             ["STATE", "Postgres"],
           ].map(([label, value]) => (
-            <div className="bg-white/80 p-4" key={label}>
+            <div className="bg-panel/80 p-4" key={label}>
               <div className="font-mono text-[10px] tracking-widest text-ink-subtle">
                 {label}
               </div>
@@ -63,10 +63,10 @@ export const LoginPanel = () => {
       </section>
       <section className="flex items-center justify-center p-6">
         <form
-          className="w-full max-w-sm rounded-xl border border-line bg-white p-7 shadow-[0_20px_70px_rgba(50,95,115,0.12)]"
+          className="w-full max-w-sm rounded-xl border border-line bg-panel p-7 shadow-lg"
           onSubmit={submit}
         >
-          <div className="mb-7 flex size-10 items-center justify-center rounded-lg bg-blueprint text-white">
+          <div className="mb-7 flex size-10 items-center justify-center rounded-lg bg-blueprint text-panel">
             <Fingerprint className="size-5" />
           </div>
           <h2 className="text-2xl font-semibold tracking-tight text-ink">
@@ -95,7 +95,7 @@ export const LoginPanel = () => {
             />
           </div>
           {error && (
-            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </p>
           )}
