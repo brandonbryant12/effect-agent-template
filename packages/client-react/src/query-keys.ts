@@ -11,7 +11,7 @@ export const queryKeys = {
     detail: (projectId: ProjectId) => ["projects", projectId] as const,
   },
   tasks: {
-    byProject: (projectId: ProjectId) =>
+    byProject: (projectId: ProjectId | undefined) =>
       ["projects", projectId, "tasks"] as const,
   },
   runs: {
@@ -25,6 +25,7 @@ export const queryKeys = {
     runs: (graphId: GraphId) => ["graphs", graphId, "runs"] as const,
   },
   graphRuns: {
-    detail: (graphRunId: GraphRunId) => ["graph-runs", graphRunId] as const,
+    detail: (graphRunId: GraphRunId | undefined) =>
+      ["graph-runs", graphRunId] as const,
   },
 };

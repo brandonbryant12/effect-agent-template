@@ -43,23 +43,26 @@ const slugify = (value: string): GraphNodeId | undefined => {
     : undefined;
 };
 
+const planNodeId = Schema.decodeUnknownSync(GraphNodeIdSchema)("plan");
+const executeNodeId = Schema.decodeUnknownSync(GraphNodeIdSchema)("execute");
+
 const starterDraft: Draft = {
   name: "New graph",
   nodes: [
     {
-      id: "plan" as GraphNodeId,
+      id: planNodeId,
       name: "Plan",
       promptTemplate: "Plan how to accomplish: {{input}}",
       position: { x: 0, y: 80 },
     },
     {
-      id: "execute" as GraphNodeId,
+      id: executeNodeId,
       name: "Execute",
       promptTemplate: "Execute this plan:\n{{nodes.plan.output}}",
       position: { x: 260, y: 80 },
     },
   ],
-  edges: [{ from: "plan" as GraphNodeId, to: "execute" as GraphNodeId }],
+  edges: [{ from: planNodeId, to: executeNodeId }],
 };
 
 export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
@@ -78,10 +81,7 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
   const [editorState, sendEditor] = useMachine(graphEditorMachine);
   const [runState, sendRun] = useMachine(graphRunMachine);
 
-  const runQuery = useQuery({
-    ...graphRunQueryOptions(effectClient, activeRunId ?? ("" as GraphRunId)),
-    enabled: Boolean(activeRunId),
-  });
+  const runQuery = useQuery(graphRunQueryOptions(effectClient, activeRunId));
   const runDetail = activeRunId ? runQuery.data : undefined;
   const runStatus = runDetail?.run.status;
   useEffect(() => {

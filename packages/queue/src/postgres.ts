@@ -69,7 +69,19 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           )
           RETURNING ${columns}
         `,
-        ).pipe(Effect.flatMap((rows) => decode(rows[0] ?? {})));
+        ).pipe(
+          Effect.flatMap((rows) => {
+            const row = rows[0];
+            return row
+              ? decode(row)
+              : Effect.fail(
+                  new JobQueueError({
+                    operation: "enqueue-job-missing-row",
+                    reason: "persistence",
+                  }),
+                );
+          }),
+        );
       }),
     claim: ({ workerId, leaseSeconds }) =>
       Effect.flatMap(nowDate, (now) => {
@@ -98,12 +110,12 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           RETURNING ${columns}
         `,
         ).pipe(
-          Effect.flatMap((rows) => {
-            const row = rows[0];
-            return row
-              ? decode(row).pipe(Effect.map((job) => job as Job | undefined))
-              : Effect.succeed(undefined);
-          }),
+          Effect.flatMap(
+            (rows): Effect.Effect<Job | undefined, JobQueueError> => {
+              const row = rows[0];
+              return row ? decode(row) : Effect.succeed(undefined);
+            },
+          ),
         );
       }),
     heartbeat: (id, workerId, leaseSeconds) =>

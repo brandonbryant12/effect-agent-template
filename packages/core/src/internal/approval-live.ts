@@ -1,9 +1,9 @@
 import {
   AgentRun,
+  AgentRunId,
   AgentRunEvent,
   ApprovalRequest,
   JobId,
-  type AgentRunId,
   type ApprovalId,
   type ApprovalRequest as ApprovalRequestType,
 } from "@repo/contracts";
@@ -104,7 +104,16 @@ export const ApprovalServiceLive = Layer.effect(
                 return yield* Effect.fail(
                   new ApprovalNotFound({ approvalId: id }),
                 );
-              const runId = row.runId as AgentRunId;
+              const runId = yield* Schema.decodeUnknownEffect(AgentRunId)(
+                row.runId,
+              ).pipe(
+                Effect.mapError(
+                  () =>
+                    new PersistenceError({
+                      operation: "decode-approval-run-id",
+                    }),
+                ),
+              );
               if (row.status !== "pending") return yield* get(scope, id);
               if (typeof row.runtimeSessionId !== "string") {
                 return yield* Effect.fail(

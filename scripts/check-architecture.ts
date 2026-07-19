@@ -7,6 +7,44 @@ const sourceRoots = ["apps", "packages", "examples"].map((path) =>
 );
 const sourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
 
+const brandedIdentifierNames = [
+  "AgentRunId",
+  "AgentSessionId",
+  "ApprovalId",
+  "CommandId",
+  "ConversationId",
+  "CredentialId",
+  "GraphId",
+  "GraphNodeId",
+  "GraphRunId",
+  "JobId",
+  "ProjectId",
+  "TaskId",
+  "TenantId",
+  "Timestamp",
+  "UserId",
+].join("|");
+
+export const sourceViolations = (
+  path: string,
+  source: string,
+): ReadonlyArray<string> => {
+  const found: Array<string> = [];
+  const isTest = /(?:\/test\/|\.test\.)/.test(path);
+  if (
+    !isTest &&
+    new RegExp(`\\bas\\s+(?:${brandedIdentifierNames})\\b`).test(source)
+  ) {
+    found.push(`${path}: asserts a branded identifier instead of decoding it`);
+  }
+  if (!isTest && /rows\s*\[\s*0\s*\]\s*\?\?\s*\{\s*\}/.test(source)) {
+    found.push(
+      `${path}: invents an empty persistence row instead of handling absence`,
+    );
+  }
+  return found;
+};
+
 const walk = async (directory: string): Promise<Array<string>> => {
   const entries = await readdir(directory, { withFileTypes: true }).catch(
     () => [],
@@ -32,6 +70,7 @@ for (const file of files) {
   const path = relative(root, file).split(sep).join("/");
   const source = await readFile(file, "utf8");
   const isTest = /(?:\/test\/|\.test\.)/.test(path);
+  violations.push(...sourceViolations(path, source));
 
   if (/from\s+["']@repo\/[^"']+\/internal(?:\/|["'])/.test(source)) {
     violations.push(`${path}: imports another package's internal module`);

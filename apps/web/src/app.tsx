@@ -137,10 +137,7 @@ const Workbench = ({ userName }: { userName: string }) => {
     },
     [],
   );
-  const tasksQuery = useQuery({
-    ...taskQueryOptions(effectClient, selected?.id ?? ("" as ProjectId)),
-    enabled: Boolean(selected),
-  });
+  const tasksQuery = useQuery(taskQueryOptions(effectClient, selected?.id));
 
   const createProject = useMutation({
     mutationFn: (name: string) =>

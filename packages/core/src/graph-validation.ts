@@ -38,9 +38,11 @@ export const validateGraph = (
   }
 
   const ids = new Set<GraphNodeId>();
+  const idsByValue = new Map<string, GraphNodeId>();
   for (const node of nodes) {
     if (ids.has(node.id)) return invalid("duplicate-node", node.id);
     ids.add(node.id);
+    idsByValue.set(node.id, node.id);
   }
 
   const seenEdges = new Set<string>();
@@ -94,10 +96,11 @@ export const validateGraph = (
 
   for (const node of nodes) {
     for (const reference of graphTemplateReferences(node.promptTemplate)) {
-      if (!ids.has(reference as GraphNodeId)) {
+      const referenceId = idsByValue.get(reference);
+      if (referenceId === undefined) {
         return invalid("unknown-reference", `${node.id} -> ${reference}`);
       }
-      if (!ancestors.get(node.id)?.has(reference as GraphNodeId)) {
+      if (!ancestors.get(node.id)?.has(referenceId)) {
         return invalid("non-ancestor-reference", `${node.id} -> ${reference}`);
       }
     }

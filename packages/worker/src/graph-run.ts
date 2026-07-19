@@ -201,10 +201,15 @@ export const makeGraphRunHandler =
             /\{\{nodes\.([a-z][a-z0-9-]*)\.output\}\}/g,
           ),
         ].map((match) => match[1] ?? "");
+        const nodeIds = new Map<string, GraphNodeId>(
+          state.run.nodes.map((node) => [node.id, node.id]),
+        );
         const outputs = new Map<string, string>();
         for (const reference of references) {
+          const referenceId = nodeIds.get(reference);
+          if (referenceId === undefined) continue;
           const output = yield* journal
-            .nodeOutput(id, reference as GraphNodeId)
+            .nodeOutput(id, referenceId)
             .pipe(Effect.mapError(journalFailure));
           outputs.set(reference, output);
         }

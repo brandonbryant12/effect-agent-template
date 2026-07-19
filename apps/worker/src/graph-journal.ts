@@ -5,6 +5,7 @@ import {
   ConversationId,
   GraphRun as GraphRunSchema,
   GraphRunNode as GraphRunNodeSchema,
+  GraphRunStatus as GraphRunStatusSchema,
   JobId,
   ProjectId,
   TenantId,
@@ -236,7 +237,9 @@ export const makeGraphCoordinatorJournal = (
       finalize: (id) =>
         Effect.gen(function* () {
           const runRow = yield* loadRunRow(id);
-          const current = runRow.status as GraphRunStatus;
+          const current = yield* failWith("decode-graph-run-status")(
+            Schema.decodeUnknownEffect(GraphRunStatusSchema)(runRow.status),
+          );
           if (
             current === "completed" ||
             current === "failed" ||
