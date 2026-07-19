@@ -1,7 +1,25 @@
 import { Effect, Stream } from "effect";
 import type { AgentClient } from "./client.js";
 
-export const toPromiseClient = (client: AgentClient) => ({
+type PromiseMethod<Method> = Method extends (
+  ...args: infer Args
+) => Effect.Effect<infer Success, infer _Error, infer _Requirements>
+  ? (...args: Args) => Promise<Success>
+  : Method extends (
+        ...args: infer Args
+      ) => Stream.Stream<infer Success, infer _Error, infer _Requirements>
+    ? (...args: Args) => AsyncIterable<Success>
+    : never;
+
+export type PromiseAgentClient = {
+  readonly [Group in keyof AgentClient]: {
+    readonly [Method in keyof AgentClient[Group]]: PromiseMethod<
+      AgentClient[Group][Method]
+    >;
+  };
+};
+
+export const toPromiseClient = (client: AgentClient): PromiseAgentClient => ({
   projects: {
     list: () => Effect.runPromise(client.projects.list()),
     create: (input: Parameters<AgentClient["projects"]["create"]>[0]) =>
@@ -10,6 +28,8 @@ export const toPromiseClient = (client: AgentClient) => ({
       Effect.runPromise(client.projects.get(id)),
     update: (...input: Parameters<AgentClient["projects"]["update"]>) =>
       Effect.runPromise(client.projects.update(...input)),
+    remove: (id: Parameters<AgentClient["projects"]["remove"]>[0]) =>
+      Effect.runPromise(client.projects.remove(id)),
   },
   tasks: {
     list: (id: Parameters<AgentClient["tasks"]["list"]>[0]) =>
@@ -32,6 +52,8 @@ export const toPromiseClient = (client: AgentClient) => ({
   runs: {
     start: (...input: Parameters<AgentClient["runs"]["start"]>) =>
       Effect.runPromise(client.runs.start(...input)),
+    get: (id: Parameters<AgentClient["runs"]["get"]>[0]) =>
+      Effect.runPromise(client.runs.get(id)),
     events: (...input: Parameters<AgentClient["runs"]["events"]>) =>
       Stream.toAsyncIterable(client.runs.events(...input)),
     cancel: (id: Parameters<AgentClient["runs"]["cancel"]>[0]) =>
@@ -52,6 +74,8 @@ export const toPromiseClient = (client: AgentClient) => ({
       Effect.runPromise(client.graphs.get(id)),
     update: (...input: Parameters<AgentClient["graphs"]["update"]>) =>
       Effect.runPromise(client.graphs.update(...input)),
+    remove: (id: Parameters<AgentClient["graphs"]["remove"]>[0]) =>
+      Effect.runPromise(client.graphs.remove(id)),
   },
   graphRuns: {
     start: (...input: Parameters<AgentClient["graphRuns"]["start"]>) =>

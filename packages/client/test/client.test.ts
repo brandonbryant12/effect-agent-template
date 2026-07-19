@@ -14,8 +14,11 @@ import {
   browserCookieAuth,
   createAgentClient,
   createFetchTransport,
+  coveredClientRoutes,
   memoryTokenStore,
+  toPromiseClient,
 } from "../src/index.js";
+import { ApiRoutes } from "@repo/contracts/http";
 
 const project: Project = {
   id: "project_01JY0000000000000000000000" as Project["id"],
@@ -111,6 +114,43 @@ describe("shared client", () => {
     await expect(
       Effect.runPromise(createAgentClient(transport).projects.list()),
     ).rejects.toMatchObject({ _tag: "ClientDecodeError" });
+  });
+
+  it("keeps every HTTP route represented by the Effect client", () => {
+    expect([...coveredClientRoutes].sort()).toEqual(
+      Object.keys(ApiRoutes).sort(),
+    );
+  });
+
+  it("exposes deletion and run lookup through both client facades", () => {
+    const transport = createFetchTransport({
+      baseUrl: "https://agent.example/api/v1",
+      auth: browserCookieAuth(),
+      fetch: async () => new Response(null, { status: 204 }),
+    });
+    const client = createAgentClient(transport);
+    const promiseClient = toPromiseClient(client);
+
+    expect(typeof client.projects.remove).toBe("function");
+    expect(typeof client.graphs.remove).toBe("function");
+    expect(typeof promiseClient.projects.remove).toBe("function");
+    expect(typeof promiseClient.graphs.remove).toBe("function");
+    expect(typeof promiseClient.runs.get).toBe("function");
+  });
+
+  it("decodes a successful no-content response as void", async () => {
+    const transport = createFetchTransport({
+      baseUrl: "https://agent.example/api/v1",
+      auth: browserCookieAuth(),
+      fetch: async () => new Response(null, { status: 204 }),
+    });
+    const projectId = "project_01JY0000000000000000000000" as ProjectId;
+
+    await expect(
+      Effect.runPromise(
+        createAgentClient(transport).projects.remove(projectId),
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it("exposes the complete transport-neutral application workflow", async () => {

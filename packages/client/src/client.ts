@@ -21,6 +21,7 @@ import type {
   UpdateGraph,
 } from "@repo/contracts";
 import { ApiRoutes, buildPath } from "@repo/contracts/http";
+import type { RouteName } from "@repo/contracts/http";
 import type { ClientTransport } from "./transport.js";
 
 /**
@@ -54,6 +55,12 @@ export const createAgentClient = (transport: ClientTransport) => ({
         path: buildPath(ApiRoutes.updateProject, { projectId }),
         schema: ApiRoutes.updateProject.response,
         body: input,
+      }),
+    remove: (projectId: ProjectId) =>
+      transport.execute({
+        method: ApiRoutes.deleteProject.method,
+        path: buildPath(ApiRoutes.deleteProject, { projectId }),
+        schema: ApiRoutes.deleteProject.response,
       }),
   },
   tasks: {
@@ -176,6 +183,12 @@ export const createAgentClient = (transport: ClientTransport) => ({
         schema: ApiRoutes.updateGraph.response,
         body: input,
       }),
+    remove: (graphId: GraphId) =>
+      transport.execute({
+        method: ApiRoutes.deleteGraph.method,
+        path: buildPath(ApiRoutes.deleteGraph, { graphId }),
+        schema: ApiRoutes.deleteGraph.response,
+      }),
   },
   graphRuns: {
     start: (graphId: GraphId, commandId: CommandId, input: StartGraphRun) =>
@@ -223,3 +236,39 @@ export const createAgentClient = (transport: ClientTransport) => ({
 });
 
 export type AgentClient = ReturnType<typeof createAgentClient>;
+
+/**
+ * A runtime contract test compares this list with ApiRoutes. Keeping the list
+ * next to the implementation makes an added route an explicit client-design
+ * decision instead of a silent omission.
+ */
+export const coveredClientRoutes = [
+  "listProjects",
+  "createProject",
+  "getProject",
+  "updateProject",
+  "deleteProject",
+  "listTasks",
+  "createTask",
+  "transitionTask",
+  "createConversation",
+  "createSession",
+  "getSession",
+  "startRun",
+  "getRun",
+  "cancelRun",
+  "streamRunEvents",
+  "getApproval",
+  "replyApproval",
+  "listGraphs",
+  "createGraph",
+  "getGraph",
+  "updateGraph",
+  "deleteGraph",
+  "startGraphRun",
+  "listGraphRuns",
+  "getGraphRun",
+  "cancelGraphRun",
+  "beginCredentialUpload",
+  "getCredential",
+] as const satisfies ReadonlyArray<RouteName>;
