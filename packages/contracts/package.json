@@ -14,7 +14,8 @@
     "./approval": "./src/approval.ts",
     "./common": "./src/common.ts",
     "./credential": "./src/credential.ts",
-    "./http": "./src/http.ts"
+    "./http": "./src/http.ts",
+    "./graph": "./src/graph.ts"
   },
   "dependencies": {
     "effect": "catalog:"

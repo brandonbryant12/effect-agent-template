@@ -46,3 +46,15 @@ export type CredentialId = typeof CredentialId.Type;
 
 export const CredentialUploadId = id("upload", "CredentialUploadId");
 export type CredentialUploadId = typeof CredentialUploadId.Type;
+
+export const GraphId = id("graph", "GraphId");
+export type GraphId = typeof GraphId.Type;
+
+export const GraphRunId = id("graphrun", "GraphRunId");
+export type GraphRunId = typeof GraphRunId.Type;
+
+// Author-chosen slug, unique within one graph — not a generated ulid id.
+export const GraphNodeId = Schema.String.check(
+  Schema.isPattern(/^[a-z][a-z0-9-]{0,39}$/),
+).pipe(Schema.brand("GraphNodeId"));
+export type GraphNodeId = typeof GraphNodeId.Type;
