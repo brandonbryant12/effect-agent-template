@@ -1,4 +1,7 @@
 export * from "./errors.js";
+export * from "./graph-errors.js";
+export * from "./graph-run-transitions.js";
+export * from "./graph-validation.js";
 export * from "./live.js";
 export * from "./agent-session-service.js";
 export * from "./agent-session-transitions.js";
