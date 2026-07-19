@@ -43,6 +43,26 @@ export const toPromiseClient = (client: AgentClient) => ({
     reply: (...input: Parameters<AgentClient["approvals"]["reply"]>) =>
       Effect.runPromise(client.approvals.reply(...input)),
   },
+  graphs: {
+    list: (id: Parameters<AgentClient["graphs"]["list"]>[0]) =>
+      Effect.runPromise(client.graphs.list(id)),
+    create: (...input: Parameters<AgentClient["graphs"]["create"]>) =>
+      Effect.runPromise(client.graphs.create(...input)),
+    get: (id: Parameters<AgentClient["graphs"]["get"]>[0]) =>
+      Effect.runPromise(client.graphs.get(id)),
+    update: (...input: Parameters<AgentClient["graphs"]["update"]>) =>
+      Effect.runPromise(client.graphs.update(...input)),
+  },
+  graphRuns: {
+    start: (...input: Parameters<AgentClient["graphRuns"]["start"]>) =>
+      Effect.runPromise(client.graphRuns.start(...input)),
+    list: (id: Parameters<AgentClient["graphRuns"]["list"]>[0]) =>
+      Effect.runPromise(client.graphRuns.list(id)),
+    get: (id: Parameters<AgentClient["graphRuns"]["get"]>[0]) =>
+      Effect.runPromise(client.graphRuns.get(id)),
+    cancel: (id: Parameters<AgentClient["graphRuns"]["cancel"]>[0]) =>
+      Effect.runPromise(client.graphRuns.cancel(id)),
+  },
   credentials: {
     beginUpload: (
       input: Parameters<AgentClient["credentials"]["beginUpload"]>[0],

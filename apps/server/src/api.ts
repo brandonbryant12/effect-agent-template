@@ -14,6 +14,8 @@ import {
   AgentSessionService,
   ConversationService,
   CredentialService,
+  GraphRunService,
+  GraphService,
   ProjectService,
   TaskService,
 } from "@repo/core";
@@ -32,6 +34,8 @@ export interface ApiServices {
   readonly runs: Context.Service.Shape<typeof AgentRunService>;
   readonly approvals: Context.Service.Shape<typeof ApprovalService>;
   readonly credentials: Context.Service.Shape<typeof CredentialService>;
+  readonly graphs: Context.Service.Shape<typeof GraphService>;
+  readonly graphRuns: Context.Service.Shape<typeof GraphRunService>;
   readonly uploads: CredentialUploadService;
   readonly credentialBrokerUrl: string;
   readonly webOrigin: string;
@@ -55,8 +59,12 @@ const errorStatus: Readonly<Record<string, number>> = {
   AgentRunNotFound: 404,
   ApprovalNotFound: 404,
   CredentialNotFound: 404,
+  GraphNotFound: 404,
+  GraphRunNotFound: 404,
+  InvalidGraph: 409,
   InvalidTaskTransition: 409,
   InvalidAgentSessionTransition: 409,
+  InvalidGraphRunTransition: 409,
   RunControlRejected: 409,
 };
 
@@ -215,6 +223,68 @@ export const makeApiHandler = (services: ApiServices) => {
           services.approvals.resolve(scope, params.approvalId, body.decision),
         ),
       ),
+    listGraphs: async ({ scope, params }) =>
+      json(await run(services.graphs.listByProject(scope, params.projectId))),
+    createGraph: async ({ scope, params, body }) =>
+      json(
+        await run(services.graphs.create(scope, params.projectId, body)),
+        201,
+      ),
+    getGraph: async ({ scope, params }) =>
+      json(await run(services.graphs.get(scope, params.graphId))),
+    updateGraph: async ({ scope, params, body }) =>
+      json(await run(services.graphs.update(scope, params.graphId, body))),
+    deleteGraph: async ({ scope, params }) => {
+      await run(services.graphs.remove(scope, params.graphId));
+      return new Response(null, { status: 204 });
+    },
+    startGraphRun: async ({ scope, params, body, request }) => {
+      const commandId = Schema.decodeUnknownSync(CommandId)(
+        request.headers.get("idempotency-key"),
+      );
+      return json(
+        await run(
+          services.graphRuns.start(
+            scope,
+            params.graphId,
+            commandId,
+            body.input,
+          ),
+        ),
+        202,
+      );
+    },
+    listGraphRuns: async ({ scope, params }) =>
+      json(await run(services.graphRuns.listByGraph(scope, params.graphId))),
+    getGraphRun: async ({ scope, params }) =>
+      json(await run(services.graphRuns.get(scope, params.graphRunId))),
+    cancelGraphRun: async ({ scope, params }) => {
+      const detail = await run(
+        services.graphRuns.cancel(scope, params.graphRunId),
+      );
+      // Cancel in-flight node runs through the existing run-cancel path;
+      // a node already terminal rejects with RunControlRejected — ignored.
+      for (const node of detail.nodes) {
+        if (
+          node.agentRunId !== null &&
+          (node.status === "running" || node.status === "awaiting-approval")
+        ) {
+          try {
+            await run(services.approvals.cancelRun(scope, node.agentRunId));
+          } catch (error) {
+            if (
+              typeof error !== "object" ||
+              error === null ||
+              !("_tag" in error) ||
+              error._tag !== "RunControlRejected"
+            ) {
+              throw error;
+            }
+          }
+        }
+      }
+      return json(detail);
+    },
     beginCredentialUpload: async ({ scope, body }) => {
       const credential = await run(
         services.credentials.createPending(scope, body),

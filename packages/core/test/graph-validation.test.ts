@@ -37,9 +37,9 @@ describe("validateGraph", () => {
   });
 
   it("rejects duplicate node ids", () => {
-    expect(
-      validateGraph({ nodes: [n("a"), n("a")], edges: [] })?.reason,
-    ).toBe("duplicate-node");
+    expect(validateGraph({ nodes: [n("a"), n("a")], edges: [] })?.reason).toBe(
+      "duplicate-node",
+    );
   });
 
   it("rejects edges referencing unknown nodes", () => {

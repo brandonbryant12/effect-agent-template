@@ -6,14 +6,19 @@ import type {
   CommandId,
   CreateAgentSession,
   CreateConversation,
+  CreateGraph,
   CreateProject,
   CreateTaskBody,
   Credential,
   BeginCredentialUpload,
+  GraphId,
+  GraphRunId,
   ProjectId,
   StartAgentRun,
+  StartGraphRun,
   TaskId,
   TaskStatus,
+  UpdateGraph,
 } from "@repo/contracts";
 import { ApiRoutes, buildPath } from "@repo/contracts/http";
 import type { ClientTransport } from "./transport.js";
@@ -142,6 +147,62 @@ export const createAgentClient = (transport: ClientTransport) => ({
         path: buildPath(ApiRoutes.replyApproval, { approvalId }),
         schema: ApiRoutes.replyApproval.response,
         body: { decision },
+      }),
+  },
+  graphs: {
+    list: (projectId: ProjectId) =>
+      transport.execute({
+        method: ApiRoutes.listGraphs.method,
+        path: buildPath(ApiRoutes.listGraphs, { projectId }),
+        schema: ApiRoutes.listGraphs.response,
+      }),
+    create: (projectId: ProjectId, input: CreateGraph) =>
+      transport.execute({
+        method: ApiRoutes.createGraph.method,
+        path: buildPath(ApiRoutes.createGraph, { projectId }),
+        schema: ApiRoutes.createGraph.response,
+        body: input,
+      }),
+    get: (graphId: GraphId) =>
+      transport.execute({
+        method: ApiRoutes.getGraph.method,
+        path: buildPath(ApiRoutes.getGraph, { graphId }),
+        schema: ApiRoutes.getGraph.response,
+      }),
+    update: (graphId: GraphId, input: UpdateGraph) =>
+      transport.execute({
+        method: ApiRoutes.updateGraph.method,
+        path: buildPath(ApiRoutes.updateGraph, { graphId }),
+        schema: ApiRoutes.updateGraph.response,
+        body: input,
+      }),
+  },
+  graphRuns: {
+    start: (graphId: GraphId, commandId: CommandId, input: StartGraphRun) =>
+      transport.execute({
+        method: ApiRoutes.startGraphRun.method,
+        path: buildPath(ApiRoutes.startGraphRun, { graphId }),
+        schema: ApiRoutes.startGraphRun.response,
+        body: input,
+        idempotencyKey: commandId,
+      }),
+    list: (graphId: GraphId) =>
+      transport.execute({
+        method: ApiRoutes.listGraphRuns.method,
+        path: buildPath(ApiRoutes.listGraphRuns, { graphId }),
+        schema: ApiRoutes.listGraphRuns.response,
+      }),
+    get: (graphRunId: GraphRunId) =>
+      transport.execute({
+        method: ApiRoutes.getGraphRun.method,
+        path: buildPath(ApiRoutes.getGraphRun, { graphRunId }),
+        schema: ApiRoutes.getGraphRun.response,
+      }),
+    cancel: (graphRunId: GraphRunId) =>
+      transport.execute({
+        method: ApiRoutes.cancelGraphRun.method,
+        path: buildPath(ApiRoutes.cancelGraphRun, { graphRunId }),
+        schema: ApiRoutes.cancelGraphRun.response,
       }),
   },
   credentials: {

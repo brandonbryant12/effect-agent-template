@@ -4,6 +4,10 @@ import { decodeAppConfig } from "@repo/config";
 import {
   AgentRunService,
   AgentRunServiceLive,
+  GraphRunService,
+  GraphRunServiceLive,
+  GraphService,
+  GraphServiceLive,
   ApprovalService,
   ApprovalServiceLive,
   AgentSessionService,
@@ -63,6 +67,8 @@ const Domain = Layer.provide(
     AgentRunServiceLive,
     ApprovalServiceLive,
     CredentialServiceLive,
+    GraphServiceLive,
+    Layer.provide(GraphRunServiceLive, GraphServiceLive),
   ),
   Postgres,
 );
@@ -77,6 +83,8 @@ const program = Effect.gen(function* () {
   const runs = yield* AgentRunService;
   const approvals = yield* ApprovalService;
   const credentials = yield* CredentialService;
+  const graphs = yield* GraphService;
+  const graphRuns = yield* GraphRunService;
   const sql = yield* SqlClient;
   const handler = makeApiHandler({
     authenticate: auth.authenticate,
@@ -88,6 +96,8 @@ const program = Effect.gen(function* () {
     runs,
     approvals,
     credentials,
+    graphs,
+    graphRuns,
     uploads,
     credentialBrokerUrl,
     webOrigin: config.webOrigin,

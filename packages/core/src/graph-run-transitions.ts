@@ -9,12 +9,7 @@ export const allowedGraphRunTransitions: Readonly<
   Record<GraphRunStatus, ReadonlySet<GraphRunStatus>>
 > = {
   queued: new Set(["running", "cancelled"]),
-  running: new Set([
-    "awaiting-approval",
-    "completed",
-    "failed",
-    "cancelled",
-  ]),
+  running: new Set(["awaiting-approval", "completed", "failed", "cancelled"]),
   "awaiting-approval": new Set(["running", "completed", "failed", "cancelled"]),
   completed: new Set(),
   failed: new Set(),

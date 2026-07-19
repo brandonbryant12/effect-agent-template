@@ -1,4 +1,9 @@
-import type { GraphRun, GraphRunDetail, GraphRunId, GraphRunNode } from "@repo/contracts";
+import type {
+  GraphRun,
+  GraphRunDetail,
+  GraphRunId,
+  GraphRunNode,
+} from "@repo/contracts";
 import {
   GraphRun as GraphRunSchema,
   GraphRunId as GraphRunIdSchema,
@@ -16,7 +21,11 @@ import {
 } from "../graph-errors.js";
 import { GraphRunService } from "../graph-run-service.js";
 import { allowedGraphRunTransitions } from "../graph-run-transitions.js";
-import { normalizeTimestamps, nowTimestamp, persistence } from "./sql-helpers.js";
+import {
+  normalizeTimestamps,
+  nowTimestamp,
+  persistence,
+} from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 

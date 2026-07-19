@@ -32,10 +32,7 @@ export class GraphService extends Context.Service<
       scope: AccessScope,
       id: GraphId,
       input: UpdateGraph,
-    ) => Effect.Effect<
-      Graph,
-      InvalidGraph | GraphNotFound | PersistenceError
-    >;
+    ) => Effect.Effect<Graph, InvalidGraph | GraphNotFound | PersistenceError>;
     readonly remove: (
       scope: AccessScope,
       id: GraphId,

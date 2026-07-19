@@ -54,7 +54,9 @@ export const GraphRunServiceTest = Layer.effect(
   Effect.gen(function* () {
     const graphs = yield* GraphService;
     const runs = yield* Ref.make(new Map<GraphRunId, GraphRun>());
-    const nodes = yield* Ref.make(new Map<GraphRunId, ReadonlyArray<GraphRunNode>>());
+    const nodes = yield* Ref.make(
+      new Map<GraphRunId, ReadonlyArray<GraphRunNode>>(),
+    );
     const byCommand = yield* Ref.make(new Map<CommandId, GraphRunId>());
     let sequence = 0;
 

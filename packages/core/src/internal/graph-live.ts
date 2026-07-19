@@ -10,7 +10,11 @@ import { PersistenceError } from "../errors.js";
 import { GraphNotFound } from "../graph-errors.js";
 import { GraphService } from "../graph-service.js";
 import { validateGraph } from "../graph-validation.js";
-import { normalizeTimestamps, nowTimestamp, persistence } from "./sql-helpers.js";
+import {
+  normalizeTimestamps,
+  nowTimestamp,
+  persistence,
+} from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -19,9 +23,7 @@ const makeId = (): GraphId =>
 
 const decode = (row: Row): Effect.Effect<Graph, PersistenceError> =>
   Schema.decodeUnknownEffect(GraphSchema)(normalizeTimestamps(row)).pipe(
-    Effect.mapError(
-      () => new PersistenceError({ operation: "decode-graph" }),
-    ),
+    Effect.mapError(() => new PersistenceError({ operation: "decode-graph" })),
   );
 
 const decodeFirst = (

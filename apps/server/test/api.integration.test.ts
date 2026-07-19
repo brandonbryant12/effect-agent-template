@@ -2,6 +2,10 @@ import { createBetterAuthRuntime } from "@repo/auth";
 import {
   AgentRunService,
   AgentRunServiceLive,
+  GraphRunService,
+  GraphRunServiceLive,
+  GraphService,
+  GraphServiceLive,
   ApprovalService,
   ApprovalServiceLive,
   AgentSessionService,
@@ -48,6 +52,8 @@ integration("public server API", () => {
         AgentRunServiceLive,
         ApprovalServiceLive,
         CredentialServiceLive,
+        GraphServiceLive,
+        GraphRunServiceLive,
       ),
       Postgres,
     );
@@ -60,6 +66,8 @@ integration("public server API", () => {
       const runs = yield* AgentRunService;
       const approvals = yield* ApprovalService;
       const credentials = yield* CredentialService;
+      const graphs = yield* GraphService;
+      const graphRuns = yield* GraphRunService;
       const handler = makeApiHandler({
         authenticate: auth.authenticate,
         authHandler: auth.handler,
@@ -70,6 +78,8 @@ integration("public server API", () => {
         runs,
         approvals,
         credentials,
+        graphs,
+        graphRuns,
         uploads: makeCredentialUploadService({
           secretStore: makeSecretStoreMemory(),
           signingKey: Redacted.make("test-signing-key-with-enough-entropy"),
@@ -156,7 +166,80 @@ integration("public server API", () => {
       const events = yield* Effect.promise(() =>
         call(`/api/v1/runs/${run.id}/events`),
       );
+      const graphResponse = yield* Effect.promise(() =>
+        call(`/api/v1/projects/${project.id}/graphs`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: "Demo graph",
+            nodes: [
+              {
+                id: "plan",
+                name: "Plan",
+                promptTemplate: "Plan {{input}}",
+                position: { x: 0, y: 0 },
+              },
+              {
+                id: "build",
+                name: "Build",
+                promptTemplate: "Build with {{nodes.plan.output}}",
+                position: { x: 240, y: 0 },
+              },
+            ],
+            edges: [{ from: "plan", to: "build" }],
+          }),
+        }),
+      );
+      const graph = yield* Effect.promise(() => graphResponse.json());
+      const graphRunResponse = yield* Effect.promise(() =>
+        call(`/api/v1/graphs/${graph.id}/runs`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": `command_${randomUUID().replaceAll("-", "").slice(0, 26).toUpperCase()}`,
+          },
+          body: JSON.stringify({ input: "Ship the demo" }),
+        }),
+      );
+      const graphRun = yield* Effect.promise(() => graphRunResponse.json());
+      const graphRunDetail = yield* Effect.promise(() =>
+        call(`/api/v1/graph-runs/${graphRun.id}`),
+      );
+      const invalidGraphResponse = yield* Effect.promise(() =>
+        call(`/api/v1/projects/${project.id}/graphs`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: "Cyclic",
+            nodes: [
+              {
+                id: "a",
+                name: "A",
+                promptTemplate: "x",
+                position: { x: 0, y: 0 },
+              },
+              {
+                id: "b",
+                name: "B",
+                promptTemplate: "y",
+                position: { x: 0, y: 0 },
+              },
+            ],
+            edges: [
+              { from: "a", to: "b" },
+              { from: "b", to: "a" },
+            ],
+          }),
+        }),
+      );
       return {
+        graphStatuses: [
+          graphResponse.status,
+          graphRunResponse.status,
+          graphRunDetail.status,
+          invalidGraphResponse.status,
+        ],
+        graphNodes: (yield* Effect.promise(() => graphRunDetail.json())).nodes,
         statuses: [
           projectResponse.status,
           conversationResponse.status,
@@ -173,6 +256,8 @@ integration("public server API", () => {
       );
       expect(result.statuses).toEqual([201, 201, 201, 202]);
       expect(result.events).toContain("event: run-event");
+      expect(result.graphStatuses).toEqual([201, 202, 200, 409]);
+      expect(result.graphNodes).toHaveLength(2);
     } finally {
       await auth.close();
     }

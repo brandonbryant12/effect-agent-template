@@ -9,10 +9,20 @@ import {
   PendingCredentialUpload,
 } from "./credential.js";
 import {
+  Graph,
+  GraphRun,
+  GraphRunDetail,
+  CreateGraph as CreateGraphSchema,
+  StartGraphRun,
+  UpdateGraph as UpdateGraphSchema,
+} from "./graph.js";
+import {
   AgentRunId,
   AgentSessionId,
   ApprovalId,
   CredentialId,
+  GraphId,
+  GraphRunId,
   ProjectId,
   TaskId,
 } from "./ids.js";
@@ -184,6 +194,65 @@ export const ApiRoutes = {
     params: { approvalId: ApprovalId },
     request: ReplyApproval,
     response: ApprovalRequest,
+  }),
+  listGraphs: route({
+    method: "GET",
+    path: "/projects/:projectId/graphs",
+    params: { projectId: ProjectId },
+    response: Schema.Array(Graph),
+  }),
+  createGraph: route({
+    method: "POST",
+    path: "/projects/:projectId/graphs",
+    params: { projectId: ProjectId },
+    request: CreateGraphSchema,
+    response: Graph,
+    status: 201,
+  }),
+  getGraph: route({
+    method: "GET",
+    path: "/graphs/:graphId",
+    params: { graphId: GraphId },
+    response: Graph,
+  }),
+  updateGraph: route({
+    method: "PATCH",
+    path: "/graphs/:graphId",
+    params: { graphId: GraphId },
+    request: UpdateGraphSchema,
+    response: Graph,
+  }),
+  deleteGraph: route({
+    method: "DELETE",
+    path: "/graphs/:graphId",
+    params: { graphId: GraphId },
+    status: 204,
+  }),
+  startGraphRun: route({
+    method: "POST",
+    path: "/graphs/:graphId/runs",
+    params: { graphId: GraphId },
+    request: StartGraphRun,
+    response: GraphRun,
+    status: 202,
+  }),
+  listGraphRuns: route({
+    method: "GET",
+    path: "/graphs/:graphId/runs",
+    params: { graphId: GraphId },
+    response: Schema.Array(GraphRun),
+  }),
+  getGraphRun: route({
+    method: "GET",
+    path: "/graph-runs/:graphRunId",
+    params: { graphRunId: GraphRunId },
+    response: GraphRunDetail,
+  }),
+  cancelGraphRun: route({
+    method: "POST",
+    path: "/graph-runs/:graphRunId/cancel",
+    params: { graphRunId: GraphRunId },
+    response: GraphRunDetail,
   }),
   beginCredentialUpload: route({
     method: "POST",
