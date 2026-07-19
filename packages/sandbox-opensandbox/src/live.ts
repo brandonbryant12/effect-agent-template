@@ -3,11 +3,13 @@ import {
   Sandbox as OpenSandbox,
 } from "@alibaba-group/opensandbox";
 import {
+  ExecResult,
+  ExposedPort,
   SandboxError,
   type SandboxWorkspace,
   type WorkspaceRef,
 } from "@repo/sandbox";
-import { Effect, Redacted } from "effect";
+import { Effect, Redacted, Schema } from "effect";
 import type {
   CredentialBindingSpec,
   SandboxCredentialBroker,
@@ -41,8 +43,77 @@ export interface OpenSandboxAdapter {
 const shellQuote = (value: string): string =>
   `'${value.replaceAll("'", `'"'"'`)}'`;
 
-const failure = (operation: string) =>
-  new SandboxError({ operation, reason: "unavailable", retryable: true });
+const detailOf = (cause: unknown): string =>
+  (cause instanceof Error
+    ? `${cause.name}: ${cause.message}`
+    : String(cause)
+  ).slice(0, 200);
+
+const statusOf = (cause: unknown): number | undefined => {
+  if (typeof cause !== "object" || cause === null) return undefined;
+  const candidate =
+    "status" in cause
+      ? cause.status
+      : "statusCode" in cause
+        ? cause.statusCode
+        : undefined;
+  return typeof candidate === "number" ? candidate : undefined;
+};
+
+// Classify SDK failures instead of collapsing everything into a retryable
+// "unavailable": auth and quota problems must not be retried blindly, and
+// the sanitized detail keeps the original cause diagnosable.
+const classify =
+  (operation: string) =>
+  (cause: unknown): SandboxError => {
+    const detail = detailOf(cause);
+    const status = statusOf(cause);
+    if (status === 401 || status === 403)
+      return new SandboxError({
+        operation,
+        reason: "forbidden",
+        retryable: false,
+        detail,
+      });
+    if (status === 404)
+      return new SandboxError({
+        operation,
+        reason: "not-found",
+        retryable: false,
+        detail,
+      });
+    if (status === 429)
+      return new SandboxError({
+        operation,
+        reason: "rate-limited",
+        retryable: true,
+        detail,
+      });
+    return new SandboxError({
+      operation,
+      reason: "unavailable",
+      retryable: true,
+      detail,
+    });
+  };
+
+const decodeResult =
+  <S extends Schema.ConstraintDecoder<unknown, never>>(
+    operation: string,
+    schema: S,
+  ) =>
+  (value: unknown): Effect.Effect<S["Type"], SandboxError> =>
+    Schema.decodeUnknownEffect(schema)(value).pipe(
+      Effect.mapError(
+        (error) =>
+          new SandboxError({
+            operation,
+            reason: "invalid-response",
+            retryable: false,
+            detail: detailOf(error),
+          }),
+      ),
+    );
 
 const makeSdkDriver = (
   domain: string,
@@ -174,7 +245,7 @@ export const makeOpenSandboxWorkspaceWithDriver = (
             },
             credentialProxy: { enabled: true },
           }),
-        catch: () => failure("create-workspace"),
+        catch: classify("create-workspace"),
       }).pipe(
         Effect.map((sandbox) => {
           bySession.set(sessionId, sandbox);
@@ -188,7 +259,7 @@ export const makeOpenSandboxWorkspaceWithDriver = (
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.resume(),
-            catch: () => failure("resume-workspace"),
+            catch: classify("resume-workspace"),
           }),
         ),
         Effect.tap((resumed) =>
@@ -204,16 +275,17 @@ export const makeOpenSandboxWorkspaceWithDriver = (
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.exec(command.map(shellQuote).join(" ")),
-            catch: () => failure("exec"),
+            catch: classify("exec"),
           }),
         ),
+        Effect.flatMap(decodeResult("exec", ExecResult)),
       ),
     writeFile: (ref, path, content) =>
       find(ref, "write-file").pipe(
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.writeFile(path, content),
-            catch: () => failure("write-file"),
+            catch: classify("write-file"),
           }),
         ),
       ),
@@ -222,26 +294,29 @@ export const makeOpenSandboxWorkspaceWithDriver = (
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.readFile(path),
-            catch: () => failure("read-file"),
+            catch: classify("read-file"),
           }),
         ),
+        Effect.flatMap(decodeResult("read-file", Schema.String)),
       ),
     expose: (ref, port) =>
       find(ref, "expose-port").pipe(
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.expose(port),
-            catch: () => failure("expose-port"),
+            catch: classify("expose-port"),
           }),
         ),
-        Effect.map((url) => ({ port, url })),
+        Effect.flatMap((url) =>
+          decodeResult("expose-port", ExposedPort)({ port, url }),
+        ),
       ),
     pause: (ref) =>
       find(ref, "pause-workspace").pipe(
         Effect.flatMap((sandbox) =>
           Effect.tryPromise({
             try: () => sandbox.pause(),
-            catch: () => failure("pause-workspace"),
+            catch: classify("pause-workspace"),
           }),
         ),
       ),
@@ -260,7 +335,7 @@ export const makeOpenSandboxWorkspaceWithDriver = (
                 }
               }
             },
-            catch: () => failure("terminate-workspace"),
+            catch: classify("terminate-workspace"),
           }),
         ),
         Effect.tap(() =>
@@ -290,14 +365,14 @@ export const makeOpenSandboxWorkspaceWithDriver = (
                     auth: binding.auth,
                   },
                 } satisfies DriverCredential),
-              catch: () => failure("install-credential"),
+              catch: classify("install-credential"),
             }),
           ),
         ),
         Effect.mapError((error) =>
           error instanceof SandboxError
             ? error
-            : failure("read-credential-for-install"),
+            : classify("read-credential-for-install")(error),
         ),
       ),
   };

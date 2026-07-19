@@ -29,7 +29,13 @@ export class SandboxError extends Schema.TaggedErrorClass<SandboxError>()(
       "terminated",
       "unavailable",
       "invalid-path",
+      "forbidden",
+      "rate-limited",
+      "invalid-response",
     ]),
     retryable: Schema.Boolean,
+    // Short sanitized diagnostic (error name, message, HTTP status) — never
+    // secret material or request payloads.
+    detail: Schema.optionalKey(Schema.String),
   },
 ) {}
