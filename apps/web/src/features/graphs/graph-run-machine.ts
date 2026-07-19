@@ -28,20 +28,38 @@ export const graphRunMachine = setup({
     running: {
       on: {
         STATUS: [
-          { guard: ({ event }) => event.status === "awaiting-approval", target: "awaitingApproval" },
-          { guard: ({ event }) => event.status === "completed", target: "completed" },
+          {
+            guard: ({ event }) => event.status === "awaiting-approval",
+            target: "awaitingApproval",
+          },
+          {
+            guard: ({ event }) => event.status === "completed",
+            target: "completed",
+          },
           { guard: ({ event }) => event.status === "failed", target: "failed" },
-          { guard: ({ event }) => event.status === "cancelled", target: "cancelled" },
+          {
+            guard: ({ event }) => event.status === "cancelled",
+            target: "cancelled",
+          },
         ],
       },
     },
     awaitingApproval: {
       on: {
         STATUS: [
-          { guard: ({ event }) => event.status === "running", target: "running" },
-          { guard: ({ event }) => event.status === "completed", target: "completed" },
+          {
+            guard: ({ event }) => event.status === "running",
+            target: "running",
+          },
+          {
+            guard: ({ event }) => event.status === "completed",
+            target: "completed",
+          },
           { guard: ({ event }) => event.status === "failed", target: "failed" },
-          { guard: ({ event }) => event.status === "cancelled", target: "cancelled" },
+          {
+            guard: ({ event }) => event.status === "cancelled",
+            target: "cancelled",
+          },
         ],
       },
     },

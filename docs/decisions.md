@@ -163,3 +163,18 @@ close to upstream so they can be diffed and updated. Template rules
 carve those directories out rather than rewriting upstream code to comply.
 The boundary: vendored code may not _export_ provider types into
 application contracts.
+
+## 17. Graph execution reuses the run machinery instead of a second engine
+
+A user-defined orchestration graph could have grown its own executor —
+mailboxes, schedulers, a parallel event log. Instead each node is an
+ordinary `AgentSession` + `AgentRun` admitted with a deterministic command
+id (`<graphRunId>/<nodeId>`), and the coordinator is a small requeueing
+job that advances the frontier and reconciles statuses. Everything
+expensive (isolation, approvals, retries, events, cancellation) is
+inherited, and coordinator crashes are harmless because every dispatch
+replays idempotently. The coordinator re-enqueues itself with a short
+delay rather than holding a long lease so a worker restart never strands
+a run mid-graph. Conditional edges and loops were deliberately excluded
+from v1; they change the validation story (termination) and belong to a
+separate decision when a real need appears.

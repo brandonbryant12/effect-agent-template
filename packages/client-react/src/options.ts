@@ -22,7 +22,10 @@ export const graphQueryOptions = (client: AgentClient, projectId: ProjectId) =>
     queryFn: () => Effect.runPromise(client.graphs.list(projectId)),
   });
 
-export const graphDetailQueryOptions = (client: AgentClient, graphId: GraphId) =>
+export const graphDetailQueryOptions = (
+  client: AgentClient,
+  graphId: GraphId,
+) =>
   queryOptions({
     queryKey: queryKeys.graphs.detail(graphId),
     queryFn: () => Effect.runPromise(client.graphs.get(graphId)),

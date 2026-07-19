@@ -23,6 +23,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { LoginPanel } from "@/features/auth/login-panel";
 import { runMachine } from "@/features/agent-run/run-machine";
 import { agentClient, authClient, effectClient } from "@/lib/client";
+import { newCommandId } from "@/lib/command-id";
+import { GraphsPanel } from "@/features/graphs/graphs-panel";
 import { projectQueryOptions, taskQueryOptions } from "@repo/client-react";
 import type {
   AgentRun,
@@ -32,8 +34,6 @@ import type {
   CredentialId,
   ProjectId,
 } from "@repo/contracts";
-import { CommandId } from "@repo/contracts";
-import { Schema } from "effect";
 import { StatusBeacon, StatusBeaconProvider } from "@repo/ui";
 import { useMachine } from "@xstate/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -189,9 +189,7 @@ const Workbench = ({ userName }: { userName: string }) => {
       });
       const admitted = await agentClient.runs.start(
         session.id,
-        Schema.decodeUnknownSync(CommandId)(
-          `command_${crypto.randomUUID().replaceAll("-", "").slice(0, 26).toUpperCase()}`,
-        ),
+        newCommandId(),
         {
           projectId: selected.id,
           conversationId: conversation.id,
@@ -436,6 +434,8 @@ const Workbench = ({ userName }: { userName: string }) => {
                   </Button>
                 </form>
               )}
+              {selected && <GraphsPanel projectId={selected.id} />}
+
               <div className="mt-8 rounded-lg bg-blueprint-paper p-4">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <KeyRound className="size-4 text-signal" /> Personal

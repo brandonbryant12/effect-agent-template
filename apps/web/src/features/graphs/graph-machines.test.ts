@@ -28,9 +28,7 @@ describe("graphRunMachine", () => {
       const statusTransitions = on["STATUS"];
       if (!Array.isArray(statusTransitions)) continue;
       for (const transition of statusTransitions) {
-        const target = String(
-          (transition as { target?: string }).target ?? "",
-        );
+        const target = String((transition as { target?: string }).target ?? "");
         const toStatus = machineStateStatus[target];
         if (toStatus === undefined) continue;
         expect(

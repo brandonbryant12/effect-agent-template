@@ -1,4 +1,9 @@
-import type { AgentRunId, GraphId, GraphRunId, ProjectId } from "@repo/contracts";
+import type {
+  AgentRunId,
+  GraphId,
+  GraphRunId,
+  ProjectId,
+} from "@repo/contracts";
 
 export const queryKeys = {
   projects: {

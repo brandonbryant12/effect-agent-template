@@ -135,6 +135,21 @@ agreement, no duplicate method+path, matcher round-trips).
   DESIGN.md and the CSS theme drift apart. Update the contract and the code
   in the same change.
 
+## Agent graphs
+
+- `Graph`/`GraphRun` follow every pattern above: contracts schemas,
+  `Context.Service` capabilities, transition tables in core, routes in
+  `ApiRoutes`, and an app-owned Postgres coordinator journal in
+  `apps/worker` behind the `GraphCoordinatorJournal` port.
+- Graph structure is validated only by `validateGraph` in core; the editor
+  surfaces API validation errors instead of re-implementing rules.
+- Node execution reuses the ordinary session/run machinery with
+  deterministic ids derived from `<graphRunId>/<nodeId>` — coordinator
+  replays are idempotent by construction. Do not invent a second dispatch
+  path.
+- The web machines (`graphRunMachine`, `graphEditorMachine`) mirror the
+  core transition tables; `graph-machines.test.ts` fails when they drift.
+
 ## Testing
 
 - Unit tests use vitest with `Effect.runPromise(Effect.provide(program,
