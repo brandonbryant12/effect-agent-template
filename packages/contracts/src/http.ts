@@ -113,6 +113,7 @@ export const ApiRoutes = {
     method: "DELETE",
     path: "/projects/:projectId",
     params: { projectId: ProjectId },
+    response: Schema.Void,
     status: 204,
   }),
   listTasks: route({
@@ -226,6 +227,7 @@ export const ApiRoutes = {
     method: "DELETE",
     path: "/graphs/:graphId",
     params: { graphId: GraphId },
+    response: Schema.Void,
     status: 204,
   }),
   startGraphRun: route({

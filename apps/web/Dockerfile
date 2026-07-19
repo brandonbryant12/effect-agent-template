@@ -1,7 +1,8 @@
+ARG PNPM_VERSION=10.23.0
+
 FROM node:26-bookworm-slim AS build
-ENV PNPM_HOME=/pnpm
-ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+ARG PNPM_VERSION
+RUN npm install --global "pnpm@${PNPM_VERSION}"
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile && pnpm turbo run build --filter=@repo/web...

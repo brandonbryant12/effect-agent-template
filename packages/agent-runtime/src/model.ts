@@ -52,17 +52,25 @@ export const AgentRuntimeEvent = Schema.Union([
 ]);
 export type AgentRuntimeEvent = typeof AgentRuntimeEvent.Type;
 
+export const isTerminalRuntimeEvent = (event: AgentRuntimeEvent): boolean =>
+  event._tag === "RuntimeCompleted" ||
+  event._tag === "RuntimeCancelled" ||
+  event._tag === "RuntimeFailed";
+
 export class AgentRuntimeError extends Schema.TaggedErrorClass<AgentRuntimeError>()(
   "AgentRuntimeError",
   {
     operation: Schema.String,
     reason: Schema.Literals([
       "not-found",
+      "forbidden",
+      "rate-limited",
       "unavailable",
       "invalid-event",
       "permission-mismatch",
       "cancelled",
     ]),
     retryable: Schema.Boolean,
+    detail: Schema.optionalKey(Schema.String),
   },
 ) {}

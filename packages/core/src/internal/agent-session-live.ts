@@ -139,7 +139,13 @@ export const AgentSessionServiceLive = Layer.effect(
                 }),
             ),
           );
-          return yield* decode(rows[0] ?? {});
+          const row = rows[0];
+          if (!row) {
+            return yield* new PersistenceError({
+              operation: "transition-agent-session-missing-row",
+            });
+          }
+          return yield* decode(row);
         }),
     });
   }),

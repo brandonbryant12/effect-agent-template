@@ -9,6 +9,7 @@
   "dependencies": {
     "@opencode-ai/sdk": "1.18.3",
     "@repo/agent-runtime": "workspace:*",
+    "@repo/observability": "workspace:*",
     "@repo/sandbox": "workspace:*",
     "effect": "catalog:"
   }

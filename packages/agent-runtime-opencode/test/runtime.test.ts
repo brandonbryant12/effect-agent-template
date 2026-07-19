@@ -3,6 +3,40 @@ import { describe, expect, it } from "vitest";
 import { makeOpenCodeRuntime, type OpenCodeDriver } from "../src/index.js";
 
 describe("OpenCode AgentRuntime adapter", () => {
+  it("classifies rate limits with retryable redacted detail", async () => {
+    const runtime = makeOpenCodeRuntime({
+      driver: {
+        createSession: async () => {
+          throw {
+            name: "RateLimitError",
+            status: 429,
+            message: "token=private-provider-token quota exceeded",
+          };
+        },
+        send: async () => undefined,
+        events: async function* () {},
+        replyPermission: async () => undefined,
+        cancel: async () => undefined,
+        close: async () => undefined,
+      },
+      connectionForWorkspace: () =>
+        Effect.succeed({
+          baseUrl: "https://private-sandbox.example",
+          password: Redacted.make("private-control-password"),
+          directory: "/workspace",
+        }),
+    });
+
+    await expect(
+      Effect.runPromise(runtime.createSession({ workspaceRef: "workspace-1" })),
+    ).rejects.toMatchObject({
+      _tag: "AgentRuntimeError",
+      reason: "rate-limited",
+      retryable: true,
+      detail: expect.not.stringContaining("private-provider-token"),
+    });
+  });
+
   it("maps sessions, async prompts, events, permissions, cancellation, and cleanup", async () => {
     const calls: Array<unknown> = [];
     const driver: OpenCodeDriver = {

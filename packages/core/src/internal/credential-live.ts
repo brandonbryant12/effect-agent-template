@@ -56,7 +56,16 @@ export const CredentialServiceLive = Layer.effect(
             Effect.mapError(
               () => new PersistenceError({ operation: "create-credential" }),
             ),
-            Effect.flatMap((rows) => decode(rows[0] ?? {})),
+            Effect.flatMap((rows) => {
+              const row = rows[0];
+              return row
+                ? decode(row)
+                : Effect.fail(
+                    new PersistenceError({
+                      operation: "create-credential-missing-row",
+                    }),
+                  );
+            }),
           );
         }),
       get: (scope, id: CredentialId) =>

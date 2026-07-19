@@ -15,7 +15,10 @@ import {
   GraphRunNotFound,
   InvalidGraphRunTransition,
 } from "./graph-errors.js";
-import { allowedGraphRunTransitions } from "./graph-run-transitions.js";
+import {
+  allowedGraphRunTransitions,
+  isSkippableGraphNodeStatus,
+} from "./graph-run-transitions.js";
 import { GraphService } from "./graph-service.js";
 
 export class GraphRunService extends Context.Service<
@@ -53,7 +56,12 @@ export const GraphRunServiceTest = Layer.effect(
   GraphRunService,
   Effect.gen(function* () {
     const graphs = yield* GraphService;
-    const runs = yield* Ref.make(new Map<GraphRunId, GraphRun>());
+    const runs = yield* Ref.make(
+      new Map<
+        GraphRunId,
+        { readonly scope: AccessScope; readonly run: GraphRun }
+      >(),
+    );
     const nodes = yield* Ref.make(
       new Map<GraphRunId, ReadonlyArray<GraphRunNode>>(),
     );
@@ -64,9 +72,11 @@ export const GraphRunServiceTest = Layer.effect(
       Effect.flatMap(
         Effect.all([Ref.get(runs), Ref.get(nodes)]),
         ([allRuns, allNodes]) => {
-          const run = allRuns.get(id);
-          return run
-            ? Effect.succeed({ run, nodes: allNodes.get(id) ?? [] })
+          const record = allRuns.get(id);
+          return record &&
+            record.scope.tenantId === scope.tenantId &&
+            record.scope.userId === scope.userId
+            ? Effect.succeed({ run: record.run, nodes: allNodes.get(id) ?? [] })
             : Effect.fail(new GraphRunNotFound({ graphRunId: id }));
         },
       );
@@ -77,7 +87,13 @@ export const GraphRunServiceTest = Layer.effect(
           const existingId = (yield* Ref.get(byCommand)).get(commandId);
           if (existingId) {
             const existing = (yield* Ref.get(runs)).get(existingId);
-            if (existing) return existing;
+            if (
+              existing &&
+              existing.scope.tenantId === scope.tenantId &&
+              existing.scope.userId === scope.userId
+            ) {
+              return existing.run;
+            }
           }
           const graph = yield* graphs.get(scope, graphId);
           sequence += 1;
@@ -104,7 +120,7 @@ export const GraphRunServiceTest = Layer.effect(
             }),
           );
           yield* Ref.update(runs, (current) =>
-            new Map(current).set(run.id, run),
+            new Map(current).set(run.id, { scope, run }),
           );
           yield* Ref.update(nodes, (current) =>
             new Map(current).set(run.id, nodeRows),
@@ -117,7 +133,14 @@ export const GraphRunServiceTest = Layer.effect(
       get,
       listByGraph: (scope, graphId) =>
         Effect.map(Ref.get(runs), (allRuns) =>
-          [...allRuns.values()].filter((run) => run.graphId === graphId),
+          [...allRuns.values()]
+            .filter(
+              (record) =>
+                record.scope.tenantId === scope.tenantId &&
+                record.scope.userId === scope.userId,
+            )
+            .map((record) => record.run)
+            .filter((run) => run.graphId === graphId),
         ),
       cancel: (scope, id) =>
         Effect.gen(function* () {
@@ -137,12 +160,12 @@ export const GraphRunServiceTest = Layer.effect(
             updatedAt: now,
           };
           const nextNodes = detail.nodes.map((node) =>
-            node.status === "pending" || node.status === "ready"
+            isSkippableGraphNodeStatus(node.status)
               ? { ...node, status: "skipped" as const, updatedAt: now }
               : node,
           );
           yield* Ref.update(runs, (current) =>
-            new Map(current).set(id, cancelled),
+            new Map(current).set(id, { scope, run: cancelled }),
           );
           yield* Ref.update(nodes, (current) =>
             new Map(current).set(id, nextNodes),

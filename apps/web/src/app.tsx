@@ -5,11 +5,6 @@ import {
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import {
-  Message,
-  MessageContent,
-  MessageResponse,
-} from "@/components/ai-elements/message";
-import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
@@ -49,70 +44,19 @@ import {
   Radio,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
-const EventSpine = ({
-  events,
-  onApproval,
-}: {
-  events: ReadonlyArray<AgentRunEvent>;
-  onApproval: (id: ApprovalId, decision: ApprovalDecision) => void;
-}) => (
-  <div className="event-spine grid gap-4 pb-4">
-    {events.map((event) => (
-      <div className="relative pl-7" key={`${event.runId}-${event.sequence}`}>
-        <span className="absolute left-[3px] top-2 size-2 rounded-full border-2 border-blueprint-paper bg-blueprint ring-1 ring-blueprint" />
-        {event._tag === "AssistantTextCompleted" ? (
-          <Message from="assistant">
-            <MessageContent>
-              <MessageResponse>{event.text}</MessageResponse>
-            </MessageContent>
-          </Message>
-        ) : (
-          <div className="rounded-md border border-line-soft bg-white px-3 py-2">
-            <div className="flex items-center justify-between gap-4">
-              <span className="font-medium text-sm text-code">
-                {event._tag.replaceAll(/([A-Z])/g, " $1").trim()}
-              </span>
-              <span className="font-mono text-[10px] text-ink-subtle">
-                #{event.sequence}
-              </span>
-            </div>
-            {event._tag === "ApprovalRequested" && (
-              <div className="mt-2">
-                <p className="text-xs text-ink-muted">{event.safeSummary}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => onApproval(event.approvalId, "once")}
-                  >
-                    Allow once
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onApproval(event.approvalId, "always")}
-                  >
-                    Allow for session
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onApproval(event.approvalId, "reject")}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            )}
-            {event._tag === "RunFailed" && (
-              <p className="mt-1 text-xs text-red-700">{event.message}</p>
-            )}
-          </div>
-        )}
-      </div>
-    ))}
-  </div>
+const RunTranscript = lazy(() =>
+  import("@/features/agent-run/run-transcript").then((module) => ({
+    default: module.RunTranscript,
+  })),
 );
 
 const Workbench = ({ userName }: { userName: string }) => {
@@ -137,10 +81,7 @@ const Workbench = ({ userName }: { userName: string }) => {
     },
     [],
   );
-  const tasksQuery = useQuery({
-    ...taskQueryOptions(effectClient, selected?.id ?? ("" as ProjectId)),
-    enabled: Boolean(selected),
-  });
+  const tasksQuery = useQuery(taskQueryOptions(effectClient, selected?.id));
 
   const createProject = useMutation({
     mutationFn: (name: string) =>
@@ -272,7 +213,7 @@ const Workbench = ({ userName }: { userName: string }) => {
         <main className="min-h-screen bg-blueprint-paper text-ink">
           <header className="session-tape flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2 md:px-6">
             <div className="flex items-center gap-3">
-              <div className="flex size-7 items-center justify-center rounded-md bg-blueprint text-white">
+              <div className="flex size-7 items-center justify-center rounded-md bg-blueprint text-panel">
                 <Sparkles className="size-3.5" />
               </div>
               <span className="font-semibold tracking-[-0.02em]">
@@ -324,7 +265,7 @@ const Workbench = ({ userName }: { userName: string }) => {
               <div className="grid gap-1.5">
                 {projects.map((project) => (
                   <button
-                    className={`flex items-center justify-between rounded-md px-3 py-2.5 text-left text-sm transition-colors ${selected?.id === project.id ? "bg-blueprint text-white" : "hover:bg-white/70"}`}
+                    className={`flex items-center justify-between rounded-md px-3 py-2.5 text-left text-sm transition-colors ${selected?.id === project.id ? "bg-blueprint text-panel" : "hover:bg-panel/70"}`}
                     key={project.id}
                     onClick={() => setSelectedId(project.id)}
                   >
@@ -344,7 +285,7 @@ const Workbench = ({ userName }: { userName: string }) => {
                 }}
               >
                 <Input
-                  className="h-8 bg-white text-xs"
+                  className="h-8 bg-panel text-xs"
                   name="name"
                   placeholder="New project"
                 />
@@ -366,7 +307,7 @@ const Workbench = ({ userName }: { userName: string }) => {
               </div>
             </aside>
 
-            <section className="border-b border-line bg-white p-5 lg:border-b-0 lg:border-r">
+            <section className="border-b border-line bg-panel p-5 lg:border-b-0 lg:border-r">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-signal">
@@ -454,7 +395,7 @@ const Workbench = ({ userName }: { userName: string }) => {
                   }}
                 >
                   <select
-                    className="h-9 rounded-md border border-line-strong bg-white px-3 text-xs"
+                    className="h-9 rounded-md border border-line-strong bg-panel px-3 text-xs"
                     name="provider"
                     defaultValue="openai"
                   >
@@ -518,20 +459,27 @@ const Workbench = ({ userName }: { userName: string }) => {
                     />
                   ) : (
                     <>
-                      {lastPrompt && (
-                        <Message from="user">
-                          <MessageContent>{lastPrompt}</MessageContent>
-                        </Message>
-                      )}
-                      <EventSpine events={events} onApproval={replyApproval} />
+                      <Suspense
+                        fallback={
+                          <p className="text-sm text-ink-muted">
+                            Loading session record…
+                          </p>
+                        }
+                      >
+                        <RunTranscript
+                          events={events}
+                          lastPrompt={lastPrompt}
+                          onApproval={replyApproval}
+                        />
+                      </Suspense>
                     </>
                   )}
                 </ConversationContent>
                 <ConversationScrollButton />
               </Conversation>
-              <div className="border-t border-line-soft bg-white p-4">
+              <div className="border-t border-line-soft bg-panel p-4">
                 <PromptInput
-                  className="mx-auto max-w-3xl rounded-xl border-line-strong bg-white shadow-sm"
+                  className="mx-auto max-w-3xl rounded-xl border-line-strong bg-panel shadow-sm"
                   onSubmit={async ({ text }) => startRun(text)}
                 >
                   <PromptInputBody>
@@ -556,7 +504,7 @@ const Workbench = ({ userName }: { userName: string }) => {
                       One sandbox / session
                     </span>
                     <PromptInputSubmit
-                      className="bg-signal text-white hover:bg-signal-strong"
+                      className="bg-signal text-panel hover:bg-signal-strong"
                       status={
                         runState.matches("running") ||
                         runState.matches("connecting") ||

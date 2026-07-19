@@ -2,7 +2,7 @@ import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const root = resolve(import.meta.dirname, "../../..");
+const root = resolve(import.meta.dirname, "..");
 
 describe("repository guardrail contract", () => {
   it("exposes the complete confidence command chain", async () => {
@@ -26,6 +26,7 @@ describe("repository guardrail contract", () => {
       "lint",
       "typecheck",
       "architecture:check",
+      "dependencies:check",
       "design:lint",
       "template:check",
       "test",
@@ -53,5 +54,43 @@ describe("repository guardrail contract", () => {
     expect(versions.length).toBeGreaterThanOrEqual(2);
     expect(new Set(versions).size).toBe(1);
     expect(versions[0]).toMatch(/^\d/);
+  });
+
+  it("runs the complete PostgreSQL matrix without duplicate CI gates", async () => {
+    const workflow = await readFile(
+      resolve(root, ".github/workflows/ci.yml"),
+      "utf8",
+    );
+    for (const path of [
+      "packages/db/test",
+      "apps/server/test",
+      "apps/worker/test",
+      "packages/queue/test",
+    ]) {
+      expect(workflow).toContain(path);
+    }
+    expect(workflow).toContain("RUN_POSTGRES_TESTS");
+    expect(workflow).toContain("--no-file-parallelism");
+    expect(workflow).not.toMatch(/^\s*- run: pnpm template:check\s*$/m);
+  });
+
+  it("installs the pinned package manager in Node 26 container stages", async () => {
+    const manifest = JSON.parse(
+      await readFile(resolve(root, "package.json"), "utf8"),
+    ) as { packageManager?: string };
+    const pnpmVersion = manifest.packageManager?.match(/^pnpm@(.+)$/)?.[1];
+
+    expect(pnpmVersion).toBeDefined();
+    for (const [path, installCount] of [
+      ["Dockerfile", 2],
+      ["apps/web/Dockerfile", 1],
+    ] as const) {
+      const dockerfile = await readFile(resolve(root, path), "utf8");
+      expect(dockerfile).not.toContain("corepack");
+      expect(dockerfile).toContain(`ARG PNPM_VERSION=${pnpmVersion}`);
+      expect(
+        dockerfile.match(/RUN npm install --global "pnpm@\$\{PNPM_VERSION\}"/g),
+      ).toHaveLength(installCount);
+    }
   });
 });

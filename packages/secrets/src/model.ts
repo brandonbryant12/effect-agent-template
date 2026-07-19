@@ -10,7 +10,14 @@ export class SecretStoreError extends Schema.TaggedErrorClass<SecretStoreError>(
   "SecretStoreError",
   {
     operation: Schema.String,
-    reason: Schema.Literals(["not-found", "unavailable", "invalid-material"]),
+    reason: Schema.Literals([
+      "not-found",
+      "forbidden",
+      "rate-limited",
+      "unavailable",
+      "invalid-material",
+    ]),
     retryable: Schema.Boolean,
+    detail: Schema.optionalKey(Schema.String),
   },
 ) {}

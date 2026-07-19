@@ -4,13 +4,17 @@ import {
   CommandId,
   ConversationId,
   GraphRun as GraphRunSchema,
+  GraphNodeRunStatus as GraphNodeRunStatusSchema,
   GraphRunNode as GraphRunNodeSchema,
+  GraphRunStatus as GraphRunStatusSchema,
   JobId,
   ProjectId,
   TenantId,
   UserId,
   type GraphRunId,
   type GraphRunStatus,
+  graphRunStatusForNodes,
+  isTerminalGraphRunStatus,
 } from "@repo/contracts";
 import type { AgentRunService } from "@repo/core";
 import {
@@ -236,36 +240,21 @@ export const makeGraphCoordinatorJournal = (
       finalize: (id) =>
         Effect.gen(function* () {
           const runRow = yield* loadRunRow(id);
-          const current = runRow.status as GraphRunStatus;
-          if (
-            current === "completed" ||
-            current === "failed" ||
-            current === "cancelled"
-          ) {
-            return current;
-          }
+          const current = yield* failWith("decode-graph-run-status")(
+            Schema.decodeUnknownEffect(GraphRunStatusSchema)(runRow.status),
+          );
+          if (isTerminalGraphRunStatus(current)) return current;
           const rows = yield* failWith("finalize-load-nodes")(
             sql<{ readonly status: string }>`
               SELECT status FROM graph_run_nodes WHERE graph_run_id = ${id}
             `,
           );
-          const statuses = rows.map((row) => row.status);
-          const inFlight = statuses.some(
-            (status) =>
-              status === "pending" ||
-              status === "ready" ||
-              status === "running" ||
-              status === "awaiting-approval",
+          const statuses = yield* failWith("decode-graph-node-statuses")(
+            Effect.forEach(rows, (row) =>
+              Schema.decodeUnknownEffect(GraphNodeRunStatusSchema)(row.status),
+            ),
           );
-          const next: GraphRunStatus = statuses.every(
-            (status) => status === "completed",
-          )
-            ? "completed"
-            : !inFlight
-              ? "failed"
-              : statuses.some((status) => status === "awaiting-approval")
-                ? "awaiting-approval"
-                : "running";
+          const next: GraphRunStatus = graphRunStatusForNodes(statuses);
           const now = yield* nowTimestamp;
           yield* failWith("finalize-graph-run")(
             sql`

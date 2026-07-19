@@ -16,7 +16,9 @@ import {
   applyNodeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { Option } from "effect";
 import { useCallback } from "react";
+import { decodeGraphNodeId } from "./graph-identifiers.js";
 
 interface NodeCardData extends Record<string, unknown> {
   readonly title: string;
@@ -37,7 +39,7 @@ const statusRing: Readonly<Record<GraphNodeRunStatus, string>> = {
 
 const NodeCard = ({ data }: { readonly data: NodeCardData }) => (
   <div
-    className={`min-w-32 rounded-md border bg-white px-3 py-2 text-left shadow-sm ${
+    className={`min-w-32 rounded-md border bg-panel px-3 py-2 text-left shadow-sm ${
       data.selected ? "border-blueprint" : "border-line"
     } ${data.status ? `ring-2 ${statusRing[data.status]}` : ""}`}
   >
@@ -113,10 +115,13 @@ export const GraphCanvas = ({
   const handleConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
-        onConnect(
-          connection.source as GraphNodeId,
-          connection.target as GraphNodeId,
+        const source = Option.getOrUndefined(
+          decodeGraphNodeId(connection.source),
         );
+        const target = Option.getOrUndefined(
+          decodeGraphNodeId(connection.target),
+        );
+        if (source && target) onConnect(source, target);
       }
     },
     [onConnect],
@@ -130,7 +135,9 @@ export const GraphCanvas = ({
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
         onConnect={handleConnect}
-        onNodeClick={(_event, node) => onSelectNode(node.id as GraphNodeId)}
+        onNodeClick={(_event, node) =>
+          onSelectNode(Option.getOrUndefined(decodeGraphNodeId(node.id)))
+        }
         onPaneClick={() => onSelectNode(undefined)}
         fitView
         proOptions={{ hideAttribution: true }}

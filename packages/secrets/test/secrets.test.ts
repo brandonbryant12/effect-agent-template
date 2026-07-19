@@ -2,6 +2,7 @@ import { CredentialId, TenantId, UserId } from "@repo/contracts";
 import { Effect, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  classifySecretStoreError,
   makeCredentialUploadService,
   makeSecretStoreMemory,
 } from "../src/index.js";
@@ -21,6 +22,17 @@ const credentialId = Schema.decodeUnknownSync(CredentialId)(
 );
 
 describe("secret management", () => {
+  it.each([
+    [{ name: "ResourceNotFoundException", status: 404 }, "not-found", false],
+    [{ name: "AccessDeniedException", status: 403 }, "forbidden", false],
+    [{ name: "ThrottlingException", status: 429 }, "rate-limited", true],
+  ] as const)("classifies AWS failure %j as %s", (cause, reason, retryable) => {
+    expect(classifySecretStoreError("read-secret", cause)).toMatchObject({
+      reason,
+      retryable,
+    });
+  });
+
   it("keeps material behind callback-scoped redaction", async () => {
     const store = makeSecretStoreMemory();
     const ref = await Effect.runPromise(

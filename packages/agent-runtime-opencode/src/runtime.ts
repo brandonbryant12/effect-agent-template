@@ -1,8 +1,10 @@
 import {
   AgentRuntimeError,
+  isTerminalRuntimeEvent,
   type AgentRuntime,
   type RuntimeSessionRef,
 } from "@repo/agent-runtime";
+import { errorStatus, safeErrorDetail } from "@repo/observability";
 import { Effect, Stream } from "effect";
 import { mapOpenCodeEvent } from "./event-mapper.js";
 import type { OpenCodeConnection, OpenCodeRuntimeOptions } from "./model.js";
@@ -14,13 +16,37 @@ interface SessionState {
 
 const runtimeError = (
   operation: string,
-  reason: "not-found" | "unavailable" | "invalid-event",
+  reason: AgentRuntimeError["reason"],
+  detail?: string,
 ) =>
   new AgentRuntimeError({
     operation,
     reason,
     retryable: reason === "unavailable",
+    ...(detail === undefined ? {} : { detail }),
   });
+
+export const classifyRuntimeError = (
+  operation: string,
+  cause: unknown,
+): AgentRuntimeError => {
+  const status = errorStatus(cause);
+  const reason =
+    status === 404
+      ? "not-found"
+      : status === 401 || status === 403
+        ? "forbidden"
+        : status === 429
+          ? "rate-limited"
+          : "unavailable";
+  const detail = safeErrorDetail(cause);
+  return new AgentRuntimeError({
+    operation,
+    reason,
+    retryable: reason === "rate-limited" || reason === "unavailable",
+    ...(detail === undefined ? {} : { detail }),
+  });
+};
 
 export const makeOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions,
@@ -42,7 +68,7 @@ export const makeOpenCodeRuntime = (
         const connection = yield* options.connectionForWorkspace(workspaceRef);
         const openCodeSessionId = yield* Effect.tryPromise({
           try: () => options.driver.createSession(connection),
-          catch: () => runtimeError("create-session", "unavailable"),
+          catch: (cause) => classifyRuntimeError("create-session", cause),
         });
         const ref = { id: `opencode:${openCodeSessionId}` };
         sessions.set(ref.id, { connection, openCodeSessionId });
@@ -58,7 +84,7 @@ export const makeOpenCodeRuntime = (
                 current.openCodeSessionId,
                 message,
               ),
-            catch: () => runtimeError("send", "unavailable"),
+            catch: (cause) => classifyRuntimeError("send", cause),
           }),
         ),
       ),
@@ -74,18 +100,12 @@ export const makeOpenCodeRuntime = (
           const event = mapOpenCodeEvent(raw, current.openCodeSessionId);
           if (event) {
             yield event;
-            if (
-              event._tag === "RuntimeCompleted" ||
-              event._tag === "RuntimeCancelled" ||
-              event._tag === "RuntimeFailed"
-            ) {
-              break;
-            }
+            if (isTerminalRuntimeEvent(event)) break;
           }
         }
       })();
-      return Stream.fromAsyncIterable(iterable, () =>
-        runtimeError("events", "invalid-event"),
+      return Stream.fromAsyncIterable(iterable, (cause) =>
+        classifyRuntimeError("events", cause),
       );
     },
     replyPermission: ({ session, permissionId, decision }) =>
@@ -99,7 +119,7 @@ export const makeOpenCodeRuntime = (
                 permissionId,
                 decision,
               ),
-            catch: () => runtimeError("reply-permission", "unavailable"),
+            catch: (cause) => classifyRuntimeError("reply-permission", cause),
           }),
         ),
       ),
@@ -112,7 +132,7 @@ export const makeOpenCodeRuntime = (
                 current.connection,
                 current.openCodeSessionId,
               ),
-            catch: () => runtimeError("cancel", "unavailable"),
+            catch: (cause) => classifyRuntimeError("cancel", cause),
           }),
         ),
       ),
@@ -125,7 +145,7 @@ export const makeOpenCodeRuntime = (
                 current.connection,
                 current.openCodeSessionId,
               ),
-            catch: () => runtimeError("close", "unavailable"),
+            catch: (cause) => classifyRuntimeError("close", cause),
           }),
         ),
         Effect.tap(() => Effect.sync(() => sessions.delete(session.id))),

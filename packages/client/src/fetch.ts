@@ -59,6 +59,12 @@ export const createFetchTransport = (
             requestId: response.headers.get("x-request-id"),
           });
         }
+        if (response.status === 204) {
+          return yield* Effect.try({
+            try: () => Schema.decodeUnknownSync(request.schema)(undefined),
+            catch: () => new ClientDecodeError({ source: "response" }),
+          });
+        }
         const payload = yield* Effect.tryPromise({
           try: () => response.json(),
           catch: () => new ClientDecodeError({ source: "response" }),
