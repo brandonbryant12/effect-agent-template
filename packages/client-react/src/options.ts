@@ -1,4 +1,5 @@
 import type { AgentClient } from "@repo/client";
+import { isTerminalGraphRunStatus } from "@repo/contracts";
 import type { GraphId, GraphRunId, ProjectId } from "@repo/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { Effect } from "effect";
@@ -40,10 +41,6 @@ export const graphRunQueryOptions = (
     queryFn: () => Effect.runPromise(client.graphRuns.get(graphRunId)),
     refetchInterval: (query) => {
       const status = query.state.data?.run.status;
-      return status === "completed" ||
-        status === "failed" ||
-        status === "cancelled"
-        ? false
-        : 2_000;
+      return status && isTerminalGraphRunStatus(status) ? false : 2_000;
     },
   });

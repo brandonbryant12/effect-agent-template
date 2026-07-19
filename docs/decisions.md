@@ -178,3 +178,19 @@ delay rather than holding a long lease so a worker restart never strands
 a run mid-graph. Conditional edges and loops were deliberately excluded
 from v1; they change the validation story (termination) and belong to a
 separate decision when a real need appears.
+
+## 18. Derive, don't guard
+
+Stringly guards (`status === "completed" || status === "failed"`,
+`state !== "idle" && state !== "starting"`) re-encode a rule that already
+exists somewhere as data, and the two copies drift silently. The template
+therefore treats rule-bearing data structures — the route table, the
+status transition tables, the event→status projection, the token palette —
+as single authorities, and generates consuming behavior from them: the
+web state machines build their transitions from the transition tables (an
+illegal move is inexpressible, and unhandled events are dropped by the
+statechart rather than filtered by callers), terminality is derived from
+"the table allows no further moves", and the server router is derived from
+the route table. The cost is a little indirection at definition sites; the
+payoff is that adding a status, route, or token is a one-place change and
+every consumer follows automatically.

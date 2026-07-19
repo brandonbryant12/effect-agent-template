@@ -28,3 +28,11 @@ export const allowedGraphNodeTransitions: Readonly<
   failed: new Set(),
   skipped: new Set(),
 };
+
+/** Terminal means the table allows no further moves — derived, not enumerated. */
+export const isTerminalGraphRunStatus = (status: GraphRunStatus): boolean =>
+  allowedGraphRunTransitions[status].size === 0;
+
+export const isTerminalGraphNodeStatus = (
+  status: GraphNodeRunStatus,
+): boolean => allowedGraphNodeTransitions[status].size === 0;

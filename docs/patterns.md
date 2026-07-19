@@ -9,6 +9,28 @@ The reasoning behind each rule lives in [docs/decisions.md](decisions.md)
 extending one — the rationale states what would have to be true for the
 decision to change.
 
+## Derive, don't guard
+
+When a rule exists as data, consumers derive their behavior from that data
+instead of re-checking it at call sites (why §18). The template's
+authorities and their derived consumers:
+
+- `ApiRoutes` → server routing, param/body decoding, client requests.
+- Transition tables in contracts (`allowedAgentRunTransitions`,
+  `allowedGraphRunTransitions`, `allowedGraphNodeTransitions`) → SQL
+  guards, coordinator logic, and generated XState machine transitions.
+- `runStatusForEvent` → journal projection, client cache projection, and
+  run-machine STATUS events.
+- Terminality is `allowed*Transitions[status].size === 0` via the
+  `isTerminal*Status` helpers — never an inline `status === "completed" ||
+...` triple.
+- The DESIGN.md palette → Tailwind theme tokens → utility classes.
+
+The smell this rule bans: `if (state !== "x" && state !== "y")` before
+sending an event, tag-matching chains that shadow an existing projection
+function, or any second copy of a table. If you need a new rule, make it
+data in contracts and derive from it.
+
 ## Package anatomy
 
 ```text

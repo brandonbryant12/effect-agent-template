@@ -34,6 +34,7 @@ import type {
   CredentialId,
   ProjectId,
 } from "@repo/contracts";
+import { isTerminalAgentRunStatus, runStatusForEvent } from "@repo/contracts";
 import { StatusBeacon, StatusBeaconProvider } from "@repo/ui";
 import { useMachine } from "@xstate/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,11 +50,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-
-const terminal = (event: AgentRunEvent) =>
-  event._tag === "RunCompleted" ||
-  event._tag === "RunFailed" ||
-  event._tag === "RunCancelled";
 
 const EventSpine = ({
   events,
@@ -210,12 +206,13 @@ const Workbench = ({ userName }: { userName: string }) => {
           received = true;
           cursor = event.sequence;
           setEvents((current) => [...current, event]);
-          if (event._tag === "ApprovalRequested") {
-            sendRun({ type: "APPROVAL_REQUIRED" });
+          // Status and terminality derive from the shared contracts
+          // helpers; the machine decides which states react.
+          const status = runStatusForEvent(event);
+          if (status) {
+            sendRun({ type: "STATUS", status });
+            if (isTerminalAgentRunStatus(status)) done = true;
           }
-          if (event._tag === "RunCompleted") sendRun({ type: "COMPLETED" });
-          if (event._tag === "RunFailed") sendRun({ type: "FAILED" });
-          if (terminal(event)) done = true;
         }
         if (!done) {
           if (!received) sendRun({ type: "DISCONNECTED" });
@@ -224,7 +221,7 @@ const Workbench = ({ userName }: { userName: string }) => {
         }
       }
     } catch {
-      sendRun({ type: "FAILED" });
+      sendRun({ type: "START_FAILED" });
     }
   };
 

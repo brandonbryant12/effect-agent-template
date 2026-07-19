@@ -6,7 +6,10 @@ import type {
   GraphRunNode,
   GraphRunStatus,
 } from "@repo/contracts";
-import { GraphRunId as GraphRunIdSchema } from "@repo/contracts";
+import {
+  GraphRunId as GraphRunIdSchema,
+  isTerminalGraphRunStatus,
+} from "@repo/contracts";
 import { Effect, Schema } from "effect";
 import type { JobHandler } from "./runtime.js";
 import { JobHandlerError } from "./runtime.js";
@@ -70,12 +73,6 @@ export interface GraphCoordinatorJournal {
 }
 
 const GraphRunPayload = Schema.Struct({ graphRunId: GraphRunIdSchema });
-
-const TERMINAL: ReadonlySet<GraphRunStatus> = new Set([
-  "completed",
-  "failed",
-  "cancelled",
-]);
 
 export const descendantsOf = (
   edges: ReadonlyArray<GraphEdge>,
@@ -168,7 +165,7 @@ export const makeGraphRunHandler =
       const state = yield* journal
         .load(id)
         .pipe(Effect.mapError(journalFailure));
-      if (TERMINAL.has(state.run.status)) return;
+      if (isTerminalGraphRunStatus(state.run.status)) return;
 
       // Failure propagation: descendants of failed nodes can never run.
       const failed = state.nodes.filter((node) => node.status === "failed");
@@ -230,7 +227,7 @@ export const makeGraphRunHandler =
       const status = yield* journal
         .finalize(id)
         .pipe(Effect.mapError(journalFailure));
-      if (!TERMINAL.has(status)) {
+      if (!isTerminalGraphRunStatus(status)) {
         yield* journal.requeue(id).pipe(Effect.mapError(journalFailure));
       }
     });
