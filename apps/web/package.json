@@ -10,7 +10,6 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@base-ui/react": "^1.0.0",
     "@fontsource-variable/geist": "^5.2.9",
     "@repo/auth": "workspace:*",
     "@repo/client": "workspace:*",
@@ -43,7 +42,6 @@
     "xstate": "^5.24.0"
   },
   "devDependencies": {
-    "@repo/core": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

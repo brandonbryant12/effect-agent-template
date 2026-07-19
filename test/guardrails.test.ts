@@ -2,7 +2,7 @@ import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const root = resolve(import.meta.dirname, "../../..");
+const root = resolve(import.meta.dirname, "..");
 
 describe("repository guardrail contract", () => {
   it("exposes the complete confidence command chain", async () => {
@@ -26,6 +26,7 @@ describe("repository guardrail contract", () => {
       "lint",
       "typecheck",
       "architecture:check",
+      "dependencies:check",
       "design:lint",
       "template:check",
       "test",

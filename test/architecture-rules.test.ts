@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sourceViolations } from "../../../scripts/check-architecture.js";
+import { sourceViolations } from "../scripts/check-architecture.js";
 
 describe("architecture source rules", () => {
   it("rejects branded identifier assertions in production", () => {
