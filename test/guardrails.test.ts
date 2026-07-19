@@ -72,4 +72,19 @@ describe("repository guardrail contract", () => {
     expect(workflow).toContain("RUN_POSTGRES_TESTS");
     expect(workflow).not.toMatch(/^\s*- run: pnpm template:check\s*$/m);
   });
+
+  it("installs the pinned package manager in Node 26 container stages", async () => {
+    const manifest = JSON.parse(
+      await readFile(resolve(root, "package.json"), "utf8"),
+    ) as { packageManager?: string };
+    const dockerfile = await readFile(resolve(root, "Dockerfile"), "utf8");
+    const pnpmVersion = manifest.packageManager?.match(/^pnpm@(.+)$/)?.[1];
+
+    expect(pnpmVersion).toBeDefined();
+    expect(dockerfile).not.toContain("corepack");
+    expect(dockerfile).toContain(`ARG PNPM_VERSION=${pnpmVersion}`);
+    expect(
+      dockerfile.match(/RUN npm install --global "pnpm@\$\{PNPM_VERSION\}"/g),
+    ).toHaveLength(2);
+  });
 });
