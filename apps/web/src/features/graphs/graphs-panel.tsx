@@ -85,14 +85,10 @@ export const GraphsPanel = ({ projectId }: { projectId: ProjectId }) => {
   const runDetail = activeRunId ? runQuery.data : undefined;
   const runStatus = runDetail?.run.status;
   useEffect(() => {
-    if (
-      runStatus &&
-      runState.value !== "idle" &&
-      runState.value !== "starting"
-    ) {
-      sendRun({ type: "STATUS", status: runStatus });
-    }
-  }, [runStatus, runState.value, sendRun]);
+    // The statechart decides which states react to STATUS; states without
+    // a generated transition simply drop the event.
+    if (runStatus) sendRun({ type: "STATUS", status: runStatus });
+  }, [runStatus, sendRun]);
 
   const definition: Draft | undefined =
     draft ??

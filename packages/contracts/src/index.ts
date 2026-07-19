@@ -5,6 +5,7 @@ export * from "./common.js";
 export * from "./conversation.js";
 export * from "./credential.js";
 export * from "./graph.js";
+export * from "./graph-transitions.js";
 export * from "./ids.js";
 export * from "./project.js";
 export * from "./task.js";

@@ -1,9 +1,15 @@
-import type { GraphRunStatus } from "@repo/contracts";
-import { allowedGraphRunTransitions } from "@repo/core";
+import {
+  allowedGraphRunTransitions,
+  type GraphRunStatus,
+} from "@repo/contracts";
 import { describe, expect, it } from "vitest";
 import { createActor } from "xstate";
 import { graphEditorMachine } from "./graph-editor-machine.js";
-import { graphRunMachine, machineStateStatus } from "./graph-run-machine.js";
+import { graphRunMachine, stateForStatus } from "./graph-run-machine.js";
+
+const statuses = Object.keys(
+  allowedGraphRunTransitions,
+) as ReadonlyArray<GraphRunStatus>;
 
 describe("graphRunMachine", () => {
   it("follows the run lifecycle through approval to completion", () => {
@@ -19,34 +25,36 @@ describe("graphRunMachine", () => {
     actor.stop();
   });
 
-  it("every status-mirroring machine transition exists in the core table", () => {
-    const states = graphRunMachine.config.states ?? {};
-    for (const [stateName, stateConfig] of Object.entries(states)) {
-      const fromStatus = machineStateStatus[stateName];
-      if (fromStatus === undefined) continue;
-      const on = (stateConfig as { on?: Record<string, unknown> }).on ?? {};
-      const statusTransitions = on["STATUS"];
-      if (!Array.isArray(statusTransitions)) continue;
-      for (const transition of statusTransitions) {
-        const target = String((transition as { target?: string }).target ?? "");
-        const toStatus = machineStateStatus[target];
-        if (toStatus === undefined) continue;
-        expect(
-          allowedGraphRunTransitions[fromStatus].has(toStatus),
-          `machine allows ${fromStatus} -> ${toStatus} but core table does not`,
-        ).toBe(true);
+  it("drops STATUS events in states that do not react to them", () => {
+    const actor = createActor(graphRunMachine).start();
+    actor.send({ type: "STATUS", status: "completed" });
+    expect(actor.getSnapshot().value).toBe("idle");
+    actor.stop();
+  });
+
+  it("accepts exactly the transitions in the contracts table", () => {
+    for (const from of statuses) {
+      for (const to of statuses) {
+        const allowed = allowedGraphRunTransitions[from].has(to);
+        const actor = createActor(graphRunMachine, {
+          snapshot: graphRunMachine.resolveState({
+            value: stateForStatus[from],
+          }),
+        }).start();
+        actor.send({ type: "STATUS", status: to });
+        const landed = actor.getSnapshot().value;
+        actor.stop();
+        if (allowed) {
+          expect(landed, `${from} -> ${to} should transition`).toBe(
+            stateForStatus[to],
+          );
+        } else {
+          expect(landed, `${from} -> ${to} must be dropped`).toBe(
+            stateForStatus[from],
+          );
+        }
       }
     }
-    // Every core status is represented by exactly one machine state.
-    const mirrored = Object.values(machineStateStatus).filter(
-      (status): status is GraphRunStatus => status !== undefined,
-    );
-    expect(new Set(mirrored).size).toBe(mirrored.length);
-    expect(mirrored.sort()).toEqual(
-      (Object.keys(allowedGraphRunTransitions) as Array<GraphRunStatus>)
-        .filter((status) => status !== "queued")
-        .sort(),
-    );
   });
 });
 

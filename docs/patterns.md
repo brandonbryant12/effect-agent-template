@@ -137,8 +137,8 @@ agreement, no duplicate method+path, matcher round-trips).
 
 ## Agent graphs
 
-- `Graph`/`GraphRun` follow every pattern above: contracts schemas,
-  `Context.Service` capabilities, transition tables in core, routes in
+- `Graph`/`GraphRun` follow every pattern above: contracts schemas and
+  transition tables, `Context.Service` capabilities, routes in
   `ApiRoutes`, and an app-owned Postgres coordinator journal in
   `apps/worker` behind the `GraphCoordinatorJournal` port.
 - Graph structure is validated only by `validateGraph` in core; the editor
@@ -147,8 +147,12 @@ agreement, no duplicate method+path, matcher round-trips).
   deterministic ids derived from `<graphRunId>/<nodeId>` — coordinator
   replays are idempotent by construction. Do not invent a second dispatch
   path.
-- The web machines (`graphRunMachine`, `graphEditorMachine`) mirror the
-  core transition tables; `graph-machines.test.ts` fails when they drift.
+- The graph transition tables live in `@repo/contracts` beside the status
+  schemas (core re-exports them). `graphRunMachine` generates its STATUS
+  transitions from the table — an illegal transition is inexpressible —
+  and `graph-machines.test.ts` exhaustively verifies allowed moves land
+  and forbidden moves are dropped by the statechart. Callers never guard
+  on machine state before sending; the machine decides.
 
 ## Testing
 

@@ -1,4 +1,7 @@
-import type { GraphRunStatus } from "@repo/contracts";
+import {
+  allowedGraphRunTransitions,
+  type GraphRunStatus,
+} from "@repo/contracts";
 import { setup } from "xstate";
 
 type GraphRunMachineEvent =
@@ -7,11 +10,29 @@ type GraphRunMachineEvent =
   | { readonly type: "START_FAILED" }
   | { readonly type: "STATUS"; readonly status: GraphRunStatus };
 
+/** Machine state that mirrors each GraphRunStatus. Exhaustive by type. */
+export const stateForStatus: Readonly<Record<GraphRunStatus, string>> = {
+  queued: "starting",
+  running: "running",
+  "awaiting-approval": "awaitingApproval",
+  completed: "completed",
+  failed: "failed",
+  cancelled: "cancelled",
+};
+
 /**
- * Client workflow for observing one graph run. Machine states mirror
- * GraphRunStatus values; a test asserts they stay a subset of the core
- * transition tables. STATUS events come from the polled GraphRun query.
+ * STATUS transitions are generated from the contracts transition table, so
+ * the machine cannot express a move the domain forbids. States without a
+ * generated entry simply drop STATUS events — that is the statechart's
+ * decision, not the caller's.
  */
+const statusTransitions = (from: GraphRunStatus) =>
+  [...allowedGraphRunTransitions[from]].map((to) => ({
+    guard: ({ event }: { event: GraphRunMachineEvent }) =>
+      event.type === "STATUS" && event.status === to,
+    target: stateForStatus[to],
+  }));
+
 export const graphRunMachine = setup({
   types: { events: {} as GraphRunMachineEvent },
 }).createMachine({
@@ -23,65 +44,15 @@ export const graphRunMachine = setup({
       on: {
         STARTED: "running",
         START_FAILED: "idle",
+        STATUS: statusTransitions("queued"),
       },
     },
-    running: {
-      on: {
-        STATUS: [
-          {
-            guard: ({ event }) => event.status === "awaiting-approval",
-            target: "awaitingApproval",
-          },
-          {
-            guard: ({ event }) => event.status === "completed",
-            target: "completed",
-          },
-          { guard: ({ event }) => event.status === "failed", target: "failed" },
-          {
-            guard: ({ event }) => event.status === "cancelled",
-            target: "cancelled",
-          },
-        ],
-      },
-    },
+    running: { on: { STATUS: statusTransitions("running") } },
     awaitingApproval: {
-      on: {
-        STATUS: [
-          {
-            guard: ({ event }) => event.status === "running",
-            target: "running",
-          },
-          {
-            guard: ({ event }) => event.status === "completed",
-            target: "completed",
-          },
-          { guard: ({ event }) => event.status === "failed", target: "failed" },
-          {
-            guard: ({ event }) => event.status === "cancelled",
-            target: "cancelled",
-          },
-        ],
-      },
+      on: { STATUS: statusTransitions("awaiting-approval") },
     },
     completed: { on: { START: "starting" } },
     failed: { on: { START: "starting" } },
     cancelled: { on: { START: "starting" } },
   },
 });
-
-/**
- * The GraphRunStatus each machine state mirrors, exported for the
- * machine/table consistency test. `idle` and `starting` are client-only
- * phases before a run exists and map to no status.
- */
-export const machineStateStatus: Readonly<
-  Record<string, GraphRunStatus | undefined>
-> = {
-  idle: undefined,
-  starting: undefined,
-  running: "running",
-  awaitingApproval: "awaiting-approval",
-  completed: "completed",
-  failed: "failed",
-  cancelled: "cancelled",
-};
