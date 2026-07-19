@@ -1,9 +1,23 @@
 import type { Project, Task } from "@repo/contracts";
-import { Project as ProjectSchema, Task as TaskSchema } from "@repo/contracts";
-import { Effect, Schema } from "effect";
+import {
+  Project as ProjectSchema,
+  Task as TaskSchema,
+  Timestamp,
+} from "@repo/contracts";
+import { Clock, Effect, Schema } from "effect";
 import { PersistenceError } from "../errors.js";
 
 type Row = Readonly<Record<string, unknown>>;
+
+/**
+ * Current time as a branded Timestamp, taken from the Effect Clock so tests
+ * can control it. Live layers must use this instead of the wall clock.
+ */
+export const nowTimestamp: Effect.Effect<Timestamp> = Effect.map(
+  Clock.currentTimeMillis,
+  (millis) =>
+    Schema.decodeUnknownSync(Timestamp)(new Date(millis).toISOString()),
+);
 
 const iso = (value: unknown): unknown =>
   value instanceof Date ? value.toISOString() : value;

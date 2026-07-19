@@ -10,7 +10,7 @@ import {
   ConversationService,
 } from "../conversation-service.js";
 import { PersistenceError } from "../errors.js";
-import { normalizeTimestamps } from "./sql-helpers.js";
+import { normalizeTimestamps, nowTimestamp } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -29,12 +29,12 @@ export const ConversationServiceLive = Layer.effect(
       'conversations.id, conversations.project_id AS "projectId", conversations.title, conversations.created_at AS "createdAt", conversations.updated_at AS "updatedAt"',
     );
     return ConversationService.of({
-      create: (scope, input) => {
-        const id = Schema.decodeUnknownSync(ConversationIdSchema)(
-          `conversation_${ulid()}`,
-        );
-        const now = new Date();
-        return sql<Row>`
+      create: (scope, input) =>
+        Effect.flatMap(nowTimestamp, (now) => {
+          const id = Schema.decodeUnknownSync(ConversationIdSchema)(
+            `conversation_${ulid()}`,
+          );
+          return sql<Row>`
           INSERT INTO conversations (id, project_id, title, created_at, updated_at)
           SELECT ${id}, projects.id, ${input.title}, ${now}, ${now}
           FROM projects
@@ -43,20 +43,20 @@ export const ConversationServiceLive = Layer.effect(
             AND projects.owner_user_id = ${scope.userId}
           RETURNING ${projection}
         `.pipe(
-          Effect.mapError(
-            () => new PersistenceError({ operation: "create-conversation" }),
-          ),
-          Effect.flatMap((rows) =>
-            rows[0]
-              ? decode(rows[0])
-              : Effect.fail(
-                  new PersistenceError({
-                    operation: "create-conversation-scope",
-                  }),
-                ),
-          ),
-        );
-      },
+            Effect.mapError(
+              () => new PersistenceError({ operation: "create-conversation" }),
+            ),
+            Effect.flatMap((rows) =>
+              rows[0]
+                ? decode(rows[0])
+                : Effect.fail(
+                    new PersistenceError({
+                      operation: "create-conversation-scope",
+                    }),
+                  ),
+            ),
+          );
+        }),
       get: (scope, id) =>
         Effect.gen(function* () {
           const rows = yield* sql<Row>`

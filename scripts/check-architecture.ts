@@ -93,6 +93,17 @@ for (const file of files) {
       `${path}: raw SQL outside a data-access module (move it into the owning package's internal/ directory, or justify it with an '// architecture-allow: raw-sql -- <reason>' comment)`,
     );
   }
+  if (
+    !isTest &&
+    /\bnew Date\(\)|\bDate\.now\(\)/.test(source) &&
+    !source.includes("architecture-allow: wall-clock") &&
+    !path.startsWith("apps/web/src/components/ai-elements/") &&
+    !path.startsWith("apps/web/src/components/ui/")
+  ) {
+    violations.push(
+      `${path}: reads the wall clock directly (take time from Effect Clock, or justify with an '// architecture-allow: wall-clock -- <reason>' comment)`,
+    );
+  }
   if (!isTest && /Effect\.fail\(\s*new Error\(/.test(source)) {
     violations.push(
       `${path}: fails with an untyped Error (define a Schema.TaggedErrorClass instead)`,

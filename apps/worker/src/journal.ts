@@ -6,7 +6,7 @@ import {
   Timestamp,
   type AgentRunId,
 } from "@repo/contracts";
-import { Effect, Schema } from "effect";
+import { Clock, Effect, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { ulid } from "ulid";
 import { JournalError, RunNotFound, type AgentRunJournal } from "@repo/worker";
@@ -54,8 +54,11 @@ export const toDurableRunEvent = (
   }
 };
 
-const timestamp = (): Timestamp =>
-  Schema.decodeUnknownSync(Timestamp)(new Date().toISOString());
+const nowTimestamp: Effect.Effect<Timestamp> = Effect.map(
+  Clock.currentTimeMillis,
+  (millis) =>
+    Schema.decodeUnknownSync(Timestamp)(new Date(millis).toISOString()),
+);
 
 export const makeAgentRunJournalPostgres = Effect.gen(function* () {
   const sql = yield* SqlClient;
@@ -73,7 +76,7 @@ export const makeAgentRunJournalPostgres = Effect.gen(function* () {
       sql
         .withTransaction(
           Effect.gen(function* () {
-            const now = timestamp();
+            const now = yield* nowTimestamp;
             const locked = yield* sql`
             SELECT id FROM agent_runs
             WHERE id = ${runId} AND session_id = ${sessionId}
@@ -123,7 +126,7 @@ export const makeAgentRunJournalPostgres = Effect.gen(function* () {
             if (locked.length === 0)
               return yield* Effect.fail(new RunNotFound({ runId }));
             const sequence = yield* nextSequence(runId);
-            const now = timestamp();
+            const now = yield* nowTimestamp;
             const event = toDurableRunEvent(runId, sequence, now, runtimeEvent);
             if (!event) return;
             yield* sql`

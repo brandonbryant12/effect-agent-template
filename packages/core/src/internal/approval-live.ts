@@ -3,7 +3,6 @@ import {
   AgentRunEvent,
   ApprovalRequest,
   JobId,
-  Timestamp,
   type AgentRunId,
   type ApprovalId,
   type ApprovalRequest as ApprovalRequestType,
@@ -18,14 +17,12 @@ import {
 } from "../approval-service.js";
 import type { AccessScope } from "../access-scope.js";
 import { PersistenceError } from "../errors.js";
-import { persistence } from "./sql-helpers.js";
+import { nowTimestamp, persistence } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 const iso = (value: unknown) =>
   value instanceof Date ? value.toISOString() : value;
 const jobId = () => Schema.decodeUnknownSync(JobId)(`job_${ulid()}`);
-const nowTimestamp = (date: Date) =>
-  Schema.decodeUnknownSync(Timestamp)(date.toISOString());
 
 const decodeApproval = (row: Row) =>
   Schema.decodeUnknownEffect(ApprovalRequest)({
@@ -117,7 +114,7 @@ export const ApprovalServiceLive = Layer.effect(
                   }),
                 );
               }
-              const now = new Date();
+              const now = yield* nowTimestamp;
               const status =
                 decision === "once"
                   ? "approved-once"
@@ -138,7 +135,7 @@ export const ApprovalServiceLive = Layer.effect(
                 protocolVersion: 1,
                 runId,
                 sequence: sequenceRows[0]?.sequence ?? 1,
-                occurredAt: nowTimestamp(now),
+                occurredAt: now,
                 approvalId: id,
                 decision,
               });
@@ -194,7 +191,7 @@ export const ApprovalServiceLive = Layer.effect(
                   new RunControlRejected({ runId, reason: "terminal" }),
                 );
               }
-              const now = new Date();
+              const now = yield* nowTimestamp;
               const sequenceRows = yield* sql<{ readonly sequence: number }>`
                 SELECT (COALESCE(MAX(sequence), 0) + 1)::int AS sequence
                 FROM agent_run_events WHERE run_id = ${runId}
@@ -204,7 +201,7 @@ export const ApprovalServiceLive = Layer.effect(
                 protocolVersion: 1,
                 runId,
                 sequence: sequenceRows[0]?.sequence ?? 1,
-                occurredAt: nowTimestamp(now),
+                occurredAt: now,
               });
               yield* persistence(
                 "request-run-cancel",

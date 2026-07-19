@@ -1,3 +1,4 @@
+// architecture-allow: wall-clock -- deterministic double with an injectable clock; the default binds the host wall clock
 import { JobId } from "@repo/contracts";
 import { Effect, Schema } from "effect";
 import { ulid } from "ulid";

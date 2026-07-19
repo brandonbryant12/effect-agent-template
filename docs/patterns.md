@@ -57,8 +57,11 @@ export class ProjectService extends Context.Service<
 - Decode every row leaving SQL with `Schema.decodeUnknownEffect`; normalize
   `Date` columns with `normalizeTimestamps` from `internal/sql-helpers.ts`
   instead of writing a new inline converter.
-- `new Date()` in Live layers and fixed ISO strings in Test layers is the
-  current convention; do not introduce a third style.
+- Live layers take time from the Effect Clock — use `nowTimestamp` from
+  `internal/sql-helpers.ts` (core) or a local `Clock.currentTimeMillis`
+  mapping — never `new Date()` / `Date.now()` (**enforced**; escape hatch:
+  `// architecture-allow: wall-clock -- <reason>`). Test layers keep fixed
+  ISO strings, and TestClock can now drive Live layers deterministically.
 
 ## Provider ports and adapters
 

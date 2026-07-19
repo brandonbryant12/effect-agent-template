@@ -11,6 +11,7 @@ import {
   CredentialService,
 } from "../credential-service.js";
 import { PersistenceError } from "../errors.js";
+import { nowTimestamp } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 const decode = (row: Row) =>
@@ -38,12 +39,12 @@ export const CredentialServiceLive = Layer.effect(
       'id, tenant_id AS "tenantId", user_id AS "userId", provider, ownership, label, display_hint AS "displayHint", status, created_at AS "createdAt", updated_at AS "updatedAt"',
     );
     return CredentialService.of({
-      createPending: (scope, input) => {
-        const id = Schema.decodeUnknownSync(CredentialIdSchema)(
-          `credential_${ulid()}`,
-        );
-        const now = new Date();
-        return sql<Row>`
+      createPending: (scope, input) =>
+        Effect.flatMap(nowTimestamp, (now) => {
+          const id = Schema.decodeUnknownSync(CredentialIdSchema)(
+            `credential_${ulid()}`,
+          );
+          return sql<Row>`
           INSERT INTO credentials (
             id, tenant_id, user_id, provider, ownership, label,
             display_hint, status, created_at, updated_at
@@ -52,12 +53,12 @@ export const CredentialServiceLive = Layer.effect(
             'personal', ${input.label}, '', 'pending', ${now}, ${now}
           ) RETURNING ${projection}
         `.pipe(
-          Effect.mapError(
-            () => new PersistenceError({ operation: "create-credential" }),
-          ),
-          Effect.flatMap((rows) => decode(rows[0] ?? {})),
-        );
-      },
+            Effect.mapError(
+              () => new PersistenceError({ operation: "create-credential" }),
+            ),
+            Effect.flatMap((rows) => decode(rows[0] ?? {})),
+          );
+        }),
       get: (scope, id: CredentialId) =>
         Effect.gen(function* () {
           const rows = yield* sql<Row>`

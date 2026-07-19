@@ -12,6 +12,7 @@ import {
   InvalidAgentSessionTransition,
 } from "../agent-session-service.js";
 import { PersistenceError } from "../errors.js";
+import { nowTimestamp } from "./sql-helpers.js";
 import type { AccessScope } from "../access-scope.js";
 
 type Row = Readonly<Record<string, unknown>>;
@@ -77,10 +78,10 @@ export const AgentSessionServiceLive = Layer.effect(
         const id = Schema.decodeUnknownSync(AgentSessionIdSchema)(
           `session_${ulid()}`,
         );
-        const now = new Date();
         return sql
           .withTransaction(
             Effect.gen(function* () {
+              const now = yield* nowTimestamp;
               const rows = yield* sql<Row>`
           INSERT INTO agent_sessions (
             id, tenant_id, user_id, project_id, conversation_id, status, created_at, updated_at
@@ -142,8 +143,9 @@ export const AgentSessionServiceLive = Layer.effect(
               to: status,
             });
           }
+          const now = yield* nowTimestamp;
           const rows = yield* sql<Row>`
-                  UPDATE agent_sessions SET status = ${status}, updated_at = ${new Date()}
+                  UPDATE agent_sessions SET status = ${status}, updated_at = ${now}
                   WHERE id = ${id} AND tenant_id = ${scope.tenantId} AND user_id = ${scope.userId}
                   RETURNING ${projection}
                 `.pipe(

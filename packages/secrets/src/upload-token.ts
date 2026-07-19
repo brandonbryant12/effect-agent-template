@@ -1,3 +1,4 @@
+// architecture-allow: wall-clock -- clock is injectable via options.now; the default binds the host wall clock
 import {
   CredentialId,
   CredentialUploadId,

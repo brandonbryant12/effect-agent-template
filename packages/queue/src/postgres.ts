@@ -1,5 +1,5 @@
 import { JobId } from "@repo/contracts";
-import { Effect, Layer, Schema } from "effect";
+import { Clock, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { ulid } from "ulid";
 import { Job, JobQueueError, type EnqueueJob } from "./job.js";
@@ -36,6 +36,11 @@ const persistence = <A, E, R>(
     () => new JobQueueError({ operation, reason: "persistence" }),
   );
 
+const nowDate: Effect.Effect<Date> = Effect.map(
+  Clock.currentTimeMillis,
+  (millis) => new Date(millis),
+);
+
 const requireLease = (operation: string, rows: ReadonlyArray<Row>) => {
   const row = rows[0];
   return row
@@ -48,12 +53,12 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
   const columns = projection(sql);
 
   const queue: JobQueue = {
-    enqueue: (input: EnqueueJob) => {
-      const id = Schema.decodeUnknownSync(JobId)(`job_${ulid()}`);
-      const now = new Date();
-      return persistence(
-        "enqueue-job",
-        sql<Row>`
+    enqueue: (input: EnqueueJob) =>
+      Effect.flatMap(nowDate, (now) => {
+        const id = Schema.decodeUnknownSync(JobId)(`job_${ulid()}`);
+        return persistence(
+          "enqueue-job",
+          sql<Row>`
           INSERT INTO jobs (
             id, kind, payload, status, attempts, max_attempts,
             available_at, created_at, updated_at
@@ -64,14 +69,14 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           )
           RETURNING ${columns}
         `,
-      ).pipe(Effect.flatMap((rows) => decode(rows[0] ?? {})));
-    },
-    claim: ({ workerId, leaseSeconds }) => {
-      const now = new Date();
-      const leaseExpiresAt = new Date(now.getTime() + leaseSeconds * 1_000);
-      return persistence(
-        "claim-job",
-        sql<Row>`
+        ).pipe(Effect.flatMap((rows) => decode(rows[0] ?? {})));
+      }),
+    claim: ({ workerId, leaseSeconds }) =>
+      Effect.flatMap(nowDate, (now) => {
+        const leaseExpiresAt = new Date(now.getTime() + leaseSeconds * 1_000);
+        return persistence(
+          "claim-job",
+          sql<Row>`
           WITH candidate AS (
             SELECT id
             FROM jobs
@@ -92,20 +97,20 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           WHERE id = (SELECT id FROM candidate)
           RETURNING ${columns}
         `,
-      ).pipe(
-        Effect.flatMap((rows) => {
-          const row = rows[0];
-          return row
-            ? decode(row).pipe(Effect.map((job) => job as Job | undefined))
-            : Effect.succeed(undefined);
-        }),
-      );
-    },
-    heartbeat: (id, workerId, leaseSeconds) => {
-      const now = new Date();
-      return persistence(
-        "heartbeat-job",
-        sql<Row>`
+        ).pipe(
+          Effect.flatMap((rows) => {
+            const row = rows[0];
+            return row
+              ? decode(row).pipe(Effect.map((job) => job as Job | undefined))
+              : Effect.succeed(undefined);
+          }),
+        );
+      }),
+    heartbeat: (id, workerId, leaseSeconds) =>
+      Effect.flatMap(nowDate, (now) => {
+        return persistence(
+          "heartbeat-job",
+          sql<Row>`
           UPDATE jobs
           SET lease_expires_at = ${new Date(now.getTime() + leaseSeconds * 1_000)},
               updated_at = ${now}
@@ -113,24 +118,26 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
             AND lease_owner = ${workerId} AND lease_expires_at > ${now}
           RETURNING ${columns}
         `,
-      ).pipe(Effect.flatMap((rows) => requireLease("heartbeat-job", rows)));
-    },
+        ).pipe(Effect.flatMap((rows) => requireLease("heartbeat-job", rows)));
+      }),
     complete: (id, workerId) =>
-      persistence(
-        "complete-job",
-        sql<Row>`
+      Effect.flatMap(nowDate, (now) =>
+        persistence(
+          "complete-job",
+          sql<Row>`
           UPDATE jobs
           SET status = 'completed', lease_owner = NULL,
-              lease_expires_at = NULL, updated_at = ${new Date()}
+              lease_expires_at = NULL, updated_at = ${now}
           WHERE id = ${id} AND status = 'running' AND lease_owner = ${workerId}
           RETURNING ${columns}
         `,
-      ).pipe(Effect.flatMap((rows) => requireLease("complete-job", rows))),
-    retry: (id, workerId, errorCode, delaySeconds) => {
-      const now = new Date();
-      return persistence(
-        "retry-job",
-        sql<Row>`
+        ).pipe(Effect.flatMap((rows) => requireLease("complete-job", rows))),
+      ),
+    retry: (id, workerId, errorCode, delaySeconds) =>
+      Effect.flatMap(nowDate, (now) => {
+        return persistence(
+          "retry-job",
+          sql<Row>`
           UPDATE jobs
           SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'retrying' END,
               available_at = ${new Date(now.getTime() + delaySeconds * 1_000)},
@@ -139,19 +146,21 @@ export const makeJobQueuePostgres = Effect.gen(function* () {
           WHERE id = ${id} AND status = 'running' AND lease_owner = ${workerId}
           RETURNING ${columns}
         `,
-      ).pipe(Effect.flatMap((rows) => requireLease("retry-job", rows)));
-    },
+        ).pipe(Effect.flatMap((rows) => requireLease("retry-job", rows)));
+      }),
     fail: (id, workerId, errorCode) =>
-      persistence(
-        "fail-job",
-        sql<Row>`
+      Effect.flatMap(nowDate, (now) =>
+        persistence(
+          "fail-job",
+          sql<Row>`
           UPDATE jobs
           SET status = 'failed', lease_owner = NULL, lease_expires_at = NULL,
-              last_error_code = ${errorCode}, updated_at = ${new Date()}
+              last_error_code = ${errorCode}, updated_at = ${now}
           WHERE id = ${id} AND status = 'running' AND lease_owner = ${workerId}
           RETURNING ${columns}
         `,
-      ).pipe(Effect.flatMap((rows) => requireLease("fail-job", rows))),
+        ).pipe(Effect.flatMap((rows) => requireLease("fail-job", rows))),
+      ),
   };
   return queue;
 });

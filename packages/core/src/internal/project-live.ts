@@ -5,7 +5,7 @@ import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { ulid } from "ulid";
 import { PersistenceError } from "../errors.js";
 import { ProjectNotFound, ProjectService } from "../project-service.js";
-import { decodeProjectRow, persistence } from "./sql-helpers.js";
+import { decodeProjectRow, nowTimestamp, persistence } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -40,12 +40,12 @@ export const ProjectServiceLive = Layer.effect(
     );
 
     return ProjectService.of({
-      create: (scope, input) => {
-        const id = makeId();
-        const now = new Date();
-        return persistence(
-          "create-project",
-          sql<Row>`
+      create: (scope, input) =>
+        Effect.flatMap(nowTimestamp, (now) => {
+          const id = makeId();
+          return persistence(
+            "create-project",
+            sql<Row>`
             INSERT INTO projects (
               id, tenant_id, owner_user_id, name, description, created_at, updated_at
             )
@@ -54,8 +54,8 @@ export const ProjectServiceLive = Layer.effect(
             )
             RETURNING ${projection}
           `,
-        ).pipe(Effect.flatMap(decodeCreated));
-      },
+          ).pipe(Effect.flatMap(decodeCreated));
+        }),
       get: (scope, id) =>
         persistence(
           "get-project",
@@ -76,17 +76,19 @@ export const ProjectServiceLive = Layer.effect(
           `,
         ).pipe(Effect.flatMap(Effect.forEach(decodeProjectRow))),
       update: (scope, id, input) =>
-        persistence(
-          "update-project",
-          sql<Row>`
+        Effect.flatMap(nowTimestamp, (now) =>
+          persistence(
+            "update-project",
+            sql<Row>`
             UPDATE projects
-            SET name = ${input.name}, description = ${input.description}, updated_at = ${new Date()}
+            SET name = ${input.name}, description = ${input.description}, updated_at = ${now}
             WHERE id = ${id}
               AND tenant_id = ${scope.tenantId}
               AND owner_user_id = ${scope.userId}
             RETURNING ${projection}
           `,
-        ).pipe(Effect.flatMap((rows) => decodeFirst(id, rows))),
+          ).pipe(Effect.flatMap((rows) => decodeFirst(id, rows))),
+        ),
       remove: (scope, id) =>
         persistence(
           "remove-project",

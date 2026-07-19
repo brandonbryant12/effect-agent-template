@@ -9,7 +9,6 @@ import {
   AgentRunEvent as AgentRunEventSchema,
   AgentRunId as AgentRunIdSchema,
   JobId as JobIdSchema,
-  Timestamp,
 } from "@repo/contracts";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
@@ -21,7 +20,7 @@ import {
 } from "../agent-run-service.js";
 import type { AccessScope } from "../access-scope.js";
 import { PersistenceError } from "../errors.js";
-import { persistence } from "./sql-helpers.js";
+import { nowTimestamp, persistence } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -111,7 +110,7 @@ export const AgentRunServiceLive = Layer.effect(
 
               const id = makeRunId();
               const jobId = makeJobId();
-              const now = new Date();
+              const now = yield* nowTimestamp;
               const created = yield* persistence(
                 "admit-agent-run",
                 sql<Row>`
@@ -143,9 +142,7 @@ export const AgentRunServiceLive = Layer.effect(
                 protocolVersion: 1,
                 runId: run.id,
                 sequence: 1,
-                occurredAt: Schema.decodeUnknownSync(Timestamp)(
-                  now.toISOString(),
-                ),
+                occurredAt: now,
               };
               yield* persistence(
                 "admit-agent-run-records",

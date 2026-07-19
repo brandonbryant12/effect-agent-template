@@ -9,7 +9,7 @@ import {
   TaskService,
 } from "../task-service.js";
 import { transitionTask } from "../task-transition.js";
-import { decodeTaskRow, persistence } from "./sql-helpers.js";
+import { decodeTaskRow, nowTimestamp, persistence } from "./sql-helpers.js";
 import { PersistenceError } from "../errors.js";
 import type { AccessScope } from "../access-scope.js";
 
@@ -57,12 +57,12 @@ export const TaskServiceLive = Layer.effect(
       ).pipe(Effect.flatMap((rows) => decodeFirst(id, rows)));
 
     return TaskService.of({
-      create: (scope, input) => {
-        const id = makeId();
-        const now = new Date();
-        return persistence(
-          "create-task",
-          sql<Row>`
+      create: (scope, input) =>
+        Effect.flatMap(nowTimestamp, (now) => {
+          const id = makeId();
+          return persistence(
+            "create-task",
+            sql<Row>`
             INSERT INTO tasks (id, project_id, title, description, status, created_at, updated_at)
             SELECT ${id}, projects.id, ${input.title}, ${input.description}, 'todo', ${now}, ${now}
             FROM projects
@@ -71,8 +71,8 @@ export const TaskServiceLive = Layer.effect(
               AND projects.owner_user_id = ${scope.userId}
             RETURNING ${projection}
           `,
-        ).pipe(Effect.flatMap(decodeCreated));
-      },
+          ).pipe(Effect.flatMap(decodeCreated));
+        }),
       get,
       listByProject: (scope, projectId) =>
         persistence(
@@ -111,10 +111,11 @@ export const TaskServiceLive = Layer.effect(
                   to: result.to,
                 });
               }
+              const now = yield* nowTimestamp;
               const updated = yield* persistence(
                 "transition-task",
                 sql<Row>`
-                UPDATE tasks SET status = ${result.status}, updated_at = ${new Date()}
+                UPDATE tasks SET status = ${result.status}, updated_at = ${now}
                 WHERE id = ${id}
                 RETURNING ${projection}
               `,
