@@ -1,6 +1,8 @@
 export { AgentRunServiceLive } from "./internal/agent-run-live.js";
 export { ApprovalServiceLive } from "./internal/approval-live.js";
 export { AgentSessionServiceLive } from "./internal/agent-session-live.js";
+export { ConversationServiceLive } from "./internal/conversation-live.js";
 export { CredentialServiceLive } from "./internal/credential-live.js";
+export { CredentialSecretServiceLive } from "./internal/credential-secret-live.js";
 export { ProjectServiceLive } from "./internal/project-live.js";
 export { TaskServiceLive } from "./internal/task-live.js";

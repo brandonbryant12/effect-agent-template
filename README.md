@@ -33,13 +33,19 @@ pnpm --filter @repo/cli exec tsx src/main.ts login
 pnpm --filter @repo/cli exec tsx src/main.ts projects list
 ```
 
-Validate the same contracts CI enforces:
+Validate locally before pushing:
 
 ```bash
 pnpm guardrails
 pnpm build
 pnpm infra:check
 ```
+
+`pnpm guardrails` runs lint, typecheck, architecture and template checks,
+design lint, and the Docker-free test suite. CI runs the same chain plus
+Postgres-backed integration tests, image builds, a Compose smoke test, and
+Helm lint. Postgres suites run locally too when `DATABASE_URL` points at a
+running database.
 
 ## What is included
 

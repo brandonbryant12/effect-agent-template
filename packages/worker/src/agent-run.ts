@@ -20,18 +20,38 @@ const AgentRunPayload = Schema.Struct({
   prompt: Schema.String.check(Schema.isMinLength(1)),
 });
 
+export class JournalError extends Schema.TaggedErrorClass<JournalError>()(
+  "JournalError",
+  { operation: Schema.String, retryable: Schema.Boolean },
+) {}
+
+export class RunNotFound extends Schema.TaggedErrorClass<RunNotFound>()(
+  "RunNotFound",
+  { runId: AgentRunId },
+) {}
+
+export type AgentRunJournalError = JournalError | RunNotFound;
+
 export interface AgentRunJournal {
   readonly begin: (
     runId: AgentRunIdType,
     sessionId: AgentSessionIdType,
     workspace: WorkspaceRef,
     runtimeSession: RuntimeSessionRef,
-  ) => Effect.Effect<void, unknown>;
+  ) => Effect.Effect<void, AgentRunJournalError>;
   readonly record: (
     runId: AgentRunIdType,
     event: AgentRuntimeEvent,
-  ) => Effect.Effect<void, unknown>;
+  ) => Effect.Effect<void, AgentRunJournalError>;
 }
+
+export const journalFailure = (error: AgentRunJournalError): JobHandlerError =>
+  error._tag === "RunNotFound"
+    ? new JobHandlerError({ code: "run_not_found", retryable: false })
+    : new JobHandlerError({
+        code: "journal_unavailable",
+        retryable: error.retryable,
+      });
 
 export interface AgentRunHandlerOptions {
   readonly runtime: AgentRuntime;
@@ -80,7 +100,7 @@ export const makeAgentRunHandler =
         );
       yield* options.journal
         .begin(payload.runId, payload.sessionId, workspace, runtimeSession)
-        .pipe(Effect.mapError(() => handlerError("journal_unavailable", true)));
+        .pipe(Effect.mapError(journalFailure));
       yield* options.runtime
         .send({ session: runtimeSession, message: payload.prompt })
         .pipe(
@@ -92,9 +112,7 @@ export const makeAgentRunHandler =
         Stream.runForEach((event) =>
           options.journal
             .record(payload.runId, event)
-            .pipe(
-              Effect.mapError(() => handlerError("journal_unavailable", true)),
-            ),
+            .pipe(Effect.mapError(journalFailure)),
         ),
         Effect.mapError((error) =>
           error instanceof JobHandlerError

@@ -5,7 +5,7 @@ import {
   createAgentClient,
   createFetchTransport,
 } from "@repo/client";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { createPlatformTokenStore } from "./auth-store.js";
 import { parseCommand, runCommand } from "./commands.js";
 import { loginWithDevice } from "./login.js";
@@ -17,6 +17,11 @@ const tokenStore = createPlatformTokenStore({
   service: "effect-agent-template",
   account: authBaseUrl,
 });
+
+class CredentialUploadFailed extends Schema.TaggedErrorClass<CredentialUploadFailed>()(
+  "CredentialUploadFailed",
+  { reason: Schema.String },
+) {}
 
 const readHidden = (prompt: string): Effect.Effect<string> =>
   Effect.promise(
@@ -90,7 +95,10 @@ const program =
         uploadSecret: (upload, secret) =>
           Effect.gen(function* () {
             const token = yield* tokenStore.get;
-            if (!token) return yield* Effect.fail(new Error("not logged in"));
+            if (!token)
+              return yield* Effect.fail(
+                new CredentialUploadFailed({ reason: "not logged in" }),
+              );
             const response = yield* Effect.promise(() =>
               fetch(upload.url, {
                 method: "POST",
@@ -104,7 +112,9 @@ const program =
             );
             if (!response.ok) {
               return yield* Effect.fail(
-                new Error(`credential upload failed (${response.status})`),
+                new CredentialUploadFailed({
+                  reason: `upload rejected (${response.status})`,
+                }),
               );
             }
           }),

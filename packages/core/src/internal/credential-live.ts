@@ -10,7 +10,7 @@ import {
   CredentialNotFound,
   CredentialService,
 } from "../credential-service.js";
-import { PersistenceError } from "../project-service.js";
+import { PersistenceError } from "../errors.js";
 
 type Row = Readonly<Record<string, unknown>>;
 const decode = (row: Row) =>

@@ -1,7 +1,7 @@
 import type { CreateTask, Task, TaskId, TaskStatus } from "@repo/contracts";
 import { TaskId as TaskIdSchema, Timestamp } from "@repo/contracts";
 import { Context, Effect, Layer, Ref, Schema } from "effect";
-import { PersistenceError } from "./project-service.js";
+import { PersistenceError } from "./errors.js";
 import { transitionTask } from "./task-transition.js";
 import type { AccessScope } from "./access-scope.js";
 

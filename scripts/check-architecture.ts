@@ -72,8 +72,57 @@ for (const file of files) {
   ) {
     violations.push(`${path}: imports Base UI outside packages/ui`);
   }
+  if (
+    /from\s+["'](?:radix-ui|cmdk)["']/.test(source) &&
+    !path.startsWith("apps/web/src/components/ui/") &&
+    !path.startsWith("packages/ui/")
+  ) {
+    violations.push(
+      `${path}: imports a UI primitive library outside the vendored component directories`,
+    );
+  }
+  if (
+    !isTest &&
+    /\bsql(?:<[^`]*>)?`/.test(source) &&
+    !path.startsWith("packages/db/") &&
+    !path.startsWith("packages/queue/src/") &&
+    !/^packages\/[^/]+\/src\/internal\//.test(path) &&
+    !source.includes("architecture-allow: raw-sql")
+  ) {
+    violations.push(
+      `${path}: raw SQL outside a data-access module (move it into the owning package's internal/ directory, or justify it with an '// architecture-allow: raw-sql -- <reason>' comment)`,
+    );
+  }
+  if (!isTest && /Effect\.fail\(\s*new Error\(/.test(source)) {
+    violations.push(
+      `${path}: fails with an untyped Error (define a Schema.TaggedErrorClass instead)`,
+    );
+  }
+  if (!isTest && /\bString\([^)]*\)\s*\.includes\(/.test(source)) {
+    violations.push(
+      `${path}: matches errors by stringified content (branch on the error's _tag instead)`,
+    );
+  }
+  if (/\bData\.TaggedError\b|\bContext\.GenericTag\b/.test(source)) {
+    violations.push(
+      `${path}: uses a non-canonical idiom (Schema.TaggedErrorClass for errors, Context.Service for capabilities)`,
+    );
+  }
   if (!isTest && /\bas never\b/.test(source)) {
     violations.push(`${path}: contains a production 'as never' assertion`);
+  }
+  if (!isTest && /\bas any\b|:\s*any\b/.test(source)) {
+    violations.push(`${path}: contains a production 'any'`);
+  }
+  if (
+    !isTest &&
+    /\bconsole\.\w+\(/.test(source) &&
+    path.startsWith("packages/") &&
+    path !== "packages/db/src/migrate.ts"
+  ) {
+    violations.push(
+      `${path}: uses console in a library package (log through @repo/observability or return typed errors)`,
+    );
   }
   if (
     !isTest &&

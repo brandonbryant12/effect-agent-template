@@ -7,15 +7,11 @@ import type {
 import { ProjectId as ProjectIdSchema, Timestamp } from "@repo/contracts";
 import { Context, Effect, Layer, Ref, Schema } from "effect";
 import type { AccessScope } from "./access-scope.js";
+import { PersistenceError } from "./errors.js";
 
 export class ProjectNotFound extends Schema.TaggedErrorClass<ProjectNotFound>()(
   "ProjectNotFound",
   { projectId: ProjectIdSchema },
-) {}
-
-export class PersistenceError extends Schema.TaggedErrorClass<PersistenceError>()(
-  "PersistenceError",
-  { operation: Schema.String },
 ) {}
 
 export class ProjectService extends Context.Service<

@@ -1,3 +1,4 @@
+// architecture-allow: raw-sql -- readiness probe issues SELECT 1 against the pooled client
 import { createBetterAuthRuntime } from "@repo/auth";
 import { decodeAppConfig } from "@repo/config";
 import {

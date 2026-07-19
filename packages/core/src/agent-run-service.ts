@@ -11,7 +11,7 @@ import type {
 import { AgentRunId as AgentRunIdSchema, Timestamp } from "@repo/contracts";
 import { Context, Effect, Layer, Ref, Schema } from "effect";
 import type { AccessScope } from "./access-scope.js";
-import { PersistenceError } from "./project-service.js";
+import { PersistenceError } from "./errors.js";
 
 export interface AdmitAgentRun {
   readonly commandId: CommandId;

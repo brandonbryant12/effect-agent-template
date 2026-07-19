@@ -1,3 +1,4 @@
+// architecture-allow: raw-sql -- reads frozen session credential references when installing vault bindings
 import type { AgentSessionId } from "@repo/contracts";
 import { CredentialId, CredentialProvider } from "@repo/contracts";
 import type { WorkspaceRef } from "@repo/sandbox";

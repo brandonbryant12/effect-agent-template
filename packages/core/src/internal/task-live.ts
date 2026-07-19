@@ -10,7 +10,7 @@ import {
 } from "../task-service.js";
 import { transitionTask } from "../task-transition.js";
 import { decodeTaskRow, persistence } from "./sql-helpers.js";
-import { PersistenceError } from "../project-service.js";
+import { PersistenceError } from "../errors.js";
 import type { AccessScope } from "../access-scope.js";
 
 type Row = Readonly<Record<string, unknown>>;

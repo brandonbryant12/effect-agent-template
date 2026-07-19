@@ -3,11 +3,8 @@ import { ProjectId as ProjectIdSchema } from "@repo/contracts";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { ulid } from "ulid";
-import {
-  PersistenceError,
-  ProjectNotFound,
-  ProjectService,
-} from "../project-service.js";
+import { PersistenceError } from "../errors.js";
+import { ProjectNotFound, ProjectService } from "../project-service.js";
 import { decodeProjectRow, persistence } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;

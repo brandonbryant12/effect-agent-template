@@ -11,7 +11,7 @@ import {
   AgentSessionService,
   InvalidAgentSessionTransition,
 } from "../agent-session-service.js";
-import { PersistenceError } from "../project-service.js";
+import { PersistenceError } from "../errors.js";
 import type { AccessScope } from "../access-scope.js";
 
 type Row = Readonly<Record<string, unknown>>;

@@ -1,3 +1,4 @@
+// architecture-allow: raw-sql -- atomically consumes one-time upload tokens inside the broker's narrow scope
 import { createBetterAuthRuntime } from "@repo/auth";
 import { decodeAppConfig } from "@repo/config";
 import {

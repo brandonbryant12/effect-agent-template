@@ -11,6 +11,8 @@
     "./conversation": "./src/conversation.ts",
     "./agent-run": "./src/agent-run.ts",
     "./agent-session": "./src/agent-session.ts",
+    "./approval": "./src/approval.ts",
+    "./common": "./src/common.ts",
     "./credential": "./src/credential.ts"
   },
   "dependencies": {

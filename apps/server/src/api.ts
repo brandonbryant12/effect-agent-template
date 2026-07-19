@@ -51,14 +51,26 @@ const json = (value: unknown, status = 200) =>
     headers: { "content-type": "application/json" },
   });
 
-const statusFor = (error: unknown): number => {
-  if (typeof error !== "object" || error === null || !("_tag" in error)) {
-    return 500;
-  }
-  if (String(error._tag).includes("NotFound")) return 404;
-  if (String(error._tag).includes("Invalid")) return 409;
-  return 500;
+// Every expected domain error maps to an explicit status. A tag missing from
+// this table is a defect and intentionally falls through to 500 — extend the
+// table when a capability gains a new tagged error.
+const errorStatus: Readonly<Record<string, number>> = {
+  ProjectNotFound: 404,
+  TaskNotFound: 404,
+  ConversationNotFound: 404,
+  AgentSessionNotFound: 404,
+  AgentRunNotFound: 404,
+  ApprovalNotFound: 404,
+  CredentialNotFound: 404,
+  InvalidTaskTransition: 409,
+  InvalidAgentSessionTransition: 409,
+  RunControlRejected: 409,
 };
+
+const statusFor = (error: unknown): number =>
+  typeof error === "object" && error !== null && "_tag" in error
+    ? (errorStatus[String(error._tag)] ?? 500)
+    : 500;
 
 const body = async <S extends Schema.ConstraintDecoder<unknown, never>>(
   request: Request,
@@ -414,10 +426,7 @@ export const makeApiHandler =
       }
       return respond(json({ error: "not_found" }, 404));
     } catch (error) {
-      if (
-        error instanceof SyntaxError ||
-        String(error).includes("SchemaError")
-      ) {
+      if (error instanceof SyntaxError || Schema.isSchemaError(error)) {
         return respond(json({ error: "invalid_request" }, 400));
       }
       return respond(json({ error: "request_failed" }, statusFor(error)));

@@ -11,7 +11,7 @@ import {
   Timestamp,
 } from "@repo/contracts";
 import { Context, Effect, Layer, Ref, Schema } from "effect";
-import { PersistenceError } from "./project-service.js";
+import { PersistenceError } from "./errors.js";
 import type { AccessScope } from "./access-scope.js";
 
 export interface CreateAgentSession {

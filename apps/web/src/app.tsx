@@ -155,8 +155,15 @@ const Workbench = ({ userName }: { userName: string }) => {
     },
   });
   const createTask = useMutation({
-    mutationFn: (title: string) =>
-      agentClient.tasks.create(selected!.id, { title, description: null }),
+    mutationFn: (title: string) => {
+      if (!selected) {
+        return Promise.reject(new Error("no project selected"));
+      }
+      return agentClient.tasks.create(selected.id, {
+        title,
+        description: null,
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ["projects", selected?.id, "tasks"],

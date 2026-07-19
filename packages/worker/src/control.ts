@@ -1,7 +1,7 @@
 import { RuntimeSessionRef, type AgentRuntime } from "@repo/agent-runtime";
 import { AgentRunId, ApprovalDecision } from "@repo/contracts";
 import { Effect, Schema, Stream } from "effect";
-import type { AgentRunJournal } from "./agent-run.js";
+import { journalFailure, type AgentRunJournal } from "./agent-run.js";
 import type { JobHandler } from "./runtime.js";
 import { JobHandlerError } from "./runtime.js";
 
@@ -43,7 +43,7 @@ export const makePermissionHandler =
         Stream.runForEach((event) =>
           journal
             .record(payload.runId, event)
-            .pipe(Effect.mapError(() => failure("journal_unavailable", true))),
+            .pipe(Effect.mapError(journalFailure)),
         ),
         Effect.mapError((error) =>
           error instanceof JobHandlerError
@@ -54,7 +54,7 @@ export const makePermissionHandler =
     });
 
 export const makeCancelHandler =
-  (runtime: AgentRuntime, _journal: AgentRunJournal): JobHandler =>
+  (runtime: AgentRuntime): JobHandler =>
   (job) =>
     Effect.gen(function* () {
       const payload = yield* Schema.decodeUnknownEffect(CancelPayload)(

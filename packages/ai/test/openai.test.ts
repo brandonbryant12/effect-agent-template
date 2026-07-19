@@ -1,6 +1,6 @@
 import { Effect, Schema, Stream } from "effect";
 import { describe, expect, it } from "vitest";
-import { makeOpenAiResponses } from "../src/index.js";
+import { makeOpenAiResponses } from "../src/openai.js";
 
 const streamResponse = (events: ReadonlyArray<unknown>) =>
   new Response(

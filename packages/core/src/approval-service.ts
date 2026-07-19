@@ -11,7 +11,7 @@ import {
 } from "@repo/contracts";
 import { Context, Effect, Schema } from "effect";
 import type { AccessScope } from "./access-scope.js";
-import { PersistenceError } from "./project-service.js";
+import { PersistenceError } from "./errors.js";
 
 export class ApprovalNotFound extends Schema.TaggedErrorClass<ApprovalNotFound>()(
   "ApprovalNotFound",

@@ -40,14 +40,23 @@ const program = Effect.gen(function* () {
   const sql = yield* SqlClient;
   const live = config.sandboxProvider === "opensandbox";
   const connections = new Map<string, OpenCodeConnection>();
-  const openSandbox = live
-    ? makeOpenSandboxWorkspace({
-        domain: config.openSandboxDomain,
-        apiKey: config.openSandboxApiKey!,
-        image: config.openSandboxImage,
-        allowedHosts: config.openSandboxAllowedHosts,
-      })
-    : undefined;
+  const openSandboxApiKey = config.openSandboxApiKey;
+  if (live && !openSandboxApiKey) {
+    return yield* Effect.die(
+      new Error(
+        "OPEN_SANDBOX_API_KEY must be set when SANDBOX_PROVIDER=opensandbox",
+      ),
+    );
+  }
+  const openSandbox =
+    live && openSandboxApiKey
+      ? makeOpenSandboxWorkspace({
+          domain: config.openSandboxDomain,
+          apiKey: openSandboxApiKey,
+          image: config.openSandboxImage,
+          allowedHosts: config.openSandboxAllowedHosts,
+        })
+      : undefined;
   const baseWorkspace = openSandbox?.workspace ?? makeSandboxWorkspaceTest();
   const openCodeServer = makeOpenCodeServer(baseWorkspace);
   const workspace: SandboxWorkspace = live
@@ -114,7 +123,7 @@ const program = Effect.gen(function* () {
     handlers: {
       "agent-run": agentRunHandler,
       "agent-permission": makePermissionHandler(agentRuntime, journal),
-      "agent-cancel": makeCancelHandler(agentRuntime, journal),
+      "agent-cancel": makeCancelHandler(agentRuntime),
     },
   });
   while (!abort.signal.aborted) {

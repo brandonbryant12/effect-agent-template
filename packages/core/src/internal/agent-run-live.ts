@@ -20,7 +20,7 @@ import {
   type AdmitAgentRun,
 } from "../agent-run-service.js";
 import type { AccessScope } from "../access-scope.js";
-import { PersistenceError } from "../project-service.js";
+import { PersistenceError } from "../errors.js";
 import { persistence } from "./sql-helpers.js";
 
 type Row = Readonly<Record<string, unknown>>;

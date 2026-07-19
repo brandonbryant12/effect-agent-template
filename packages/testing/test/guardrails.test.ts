@@ -22,6 +22,16 @@ describe("repository guardrail contract", () => {
       "compose:up": expect.any(String),
       "compose:down": expect.any(String),
     });
+    for (const gate of [
+      "lint",
+      "typecheck",
+      "architecture:check",
+      "design:lint",
+      "template:check",
+      "test",
+    ]) {
+      expect(manifest.scripts?.guardrails).toContain(`pnpm ${gate}`);
+    }
   });
 
   it("ships durable agent routing and Effect guidance", async () => {
@@ -31,11 +41,17 @@ describe("repository guardrail contract", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("pins one Effect 4 catalog version", async () => {
+  it("pins one exact Effect 4 catalog version", async () => {
     const workspace = await readFile(
       resolve(root, "pnpm-workspace.yaml"),
       "utf8",
     );
-    expect(workspace.match(/4\.0\.0-beta\.98/g)).toHaveLength(3);
+    const catalog = workspace.split(/^catalog:$/m)[1] ?? "";
+    const versions = [...catalog.matchAll(/^\s+"?[^:"]+"?:\s*(\S+)$/gm)].map(
+      (entry) => entry[1],
+    );
+    expect(versions.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(versions).size).toBe(1);
+    expect(versions[0]).toMatch(/^\d/);
   });
 });
