@@ -6,7 +6,9 @@ interfaces before opening `internal/` implementations.
 ## Start here
 
 1. Read [docs/patterns.md](docs/patterns.md) — the canonical idioms. When two
-   styles seem plausible, that file is the tie-breaker.
+   styles seem plausible, that file is the tie-breaker. The reasoning behind
+   each pattern is in [docs/decisions.md](docs/decisions.md); consult it
+   before deviating from or extending a pattern.
 2. For Effect code, read `.agents/skills/effect/SKILL.md` and inspect the exact
    installed `node_modules/effect/src` declarations and source.
 3. For web design work, read `apps/web/DESIGN.md` before editing components.

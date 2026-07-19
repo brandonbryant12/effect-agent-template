@@ -82,7 +82,7 @@ examples/effect-recipes/ focused idiomatic Effect examples
 deploy/               Helm and optional EKS Terraform
 ```
 
-Start with [architecture](docs/architecture.md), [security](docs/security.md), and [adoption](docs/adoption.md). Deployment details are in [deployment](docs/deployment.md); live agent setup is in [OpenCode and OpenSandbox](docs/opencode-opensandbox.md).
+Start with [architecture](docs/architecture.md), [security](docs/security.md), and [adoption](docs/adoption.md). The canonical implementation idioms are in [patterns](docs/patterns.md) and the reasoning behind them in [decisions](docs/decisions.md). Deployment details are in [deployment](docs/deployment.md); live agent setup is in [OpenCode and OpenSandbox](docs/opencode-opensandbox.md).
 
 ## Template philosophy
 
