@@ -52,6 +52,11 @@ export const AgentRuntimeEvent = Schema.Union([
 ]);
 export type AgentRuntimeEvent = typeof AgentRuntimeEvent.Type;
 
+export const isTerminalRuntimeEvent = (event: AgentRuntimeEvent): boolean =>
+  event._tag === "RuntimeCompleted" ||
+  event._tag === "RuntimeCancelled" ||
+  event._tag === "RuntimeFailed";
+
 export class AgentRuntimeError extends Schema.TaggedErrorClass<AgentRuntimeError>()(
   "AgentRuntimeError",
   {

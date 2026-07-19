@@ -36,3 +36,20 @@ export const isTerminalGraphRunStatus = (status: GraphRunStatus): boolean =>
 export const isTerminalGraphNodeStatus = (
   status: GraphNodeRunStatus,
 ): boolean => allowedGraphNodeTransitions[status].size === 0;
+
+/** A node can be skipped exactly when the canonical table allows that move. */
+export const isSkippableGraphNodeStatus = (
+  status: GraphNodeRunStatus,
+): boolean => allowedGraphNodeTransitions[status].has("skipped");
+
+/** Projects durable node state to the owning graph run's aggregate status. */
+export const graphRunStatusForNodes = (
+  statuses: ReadonlyArray<GraphNodeRunStatus>,
+): GraphRunStatus => {
+  if (statuses.length === 0) return "failed";
+  if (statuses.every((status) => status === "completed")) return "completed";
+  if (statuses.every(isTerminalGraphNodeStatus)) return "failed";
+  return statuses.some((status) => status === "awaiting-approval")
+    ? "awaiting-approval"
+    : "running";
+};

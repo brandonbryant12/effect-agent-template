@@ -1,5 +1,6 @@
 import {
   AgentRuntimeError,
+  isTerminalRuntimeEvent,
   type AgentRuntime,
   type RuntimeSessionRef,
 } from "@repo/agent-runtime";
@@ -74,13 +75,7 @@ export const makeOpenCodeRuntime = (
           const event = mapOpenCodeEvent(raw, current.openCodeSessionId);
           if (event) {
             yield event;
-            if (
-              event._tag === "RuntimeCompleted" ||
-              event._tag === "RuntimeCancelled" ||
-              event._tag === "RuntimeFailed"
-            ) {
-              break;
-            }
+            if (isTerminalRuntimeEvent(event)) break;
           }
         }
       })();

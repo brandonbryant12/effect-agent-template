@@ -1,8 +1,22 @@
 import { Effect, Stream } from "effect";
 import { describe, expect, it } from "vitest";
-import { makeAgentRuntimeTest } from "../src/index.js";
+import type { AgentRuntimeEvent } from "../src/index.js";
+import { isTerminalRuntimeEvent, makeAgentRuntimeTest } from "../src/index.js";
 
 describe("AgentRuntime contract", () => {
+  it.each([
+    ["RuntimeReady", false],
+    ["RuntimeTextDelta", false],
+    ["RuntimePermissionRequested", false],
+    ["RuntimeCompleted", true],
+    ["RuntimeCancelled", true],
+    ["RuntimeFailed", true],
+  ] as const)("derives terminality for %s", (_tag, expected) => {
+    expect(isTerminalRuntimeEvent({ _tag } as AgentRuntimeEvent)).toBe(
+      expected,
+    );
+  });
+
   it("pauses for permission, resumes deterministically, and cleans up", async () => {
     const runtime = makeAgentRuntimeTest();
     const session = await Effect.runPromise(

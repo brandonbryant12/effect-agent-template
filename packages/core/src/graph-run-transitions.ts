@@ -4,4 +4,5 @@
 export {
   allowedGraphNodeTransitions,
   allowedGraphRunTransitions,
+  isSkippableGraphNodeStatus,
 } from "@repo/contracts";

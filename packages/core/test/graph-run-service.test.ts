@@ -20,6 +20,10 @@ const scope: AccessScope = {
   tenantId: "tenant_01JY0000000000000000000000" as TenantId,
   userId: "user_01JY0000000000000000000000" as UserId,
 };
+const otherScope: AccessScope = {
+  tenantId: scope.tenantId,
+  userId: "user_01JY0000000000000000000001" as UserId,
+};
 const projectId = "project_01JY0000000000000000000000" as ProjectId;
 const commandId = "command_01JY0000000000000000000000" as CommandId;
 
@@ -98,5 +102,26 @@ describe("GraphRunService (test layer)", () => {
     expect(result.cancelled.run.status).toBe("cancelled");
     expect(result.cancelled.nodes[0]?.status).toBe("skipped");
     expect(result.again).toMatchObject({ _tag: "InvalidGraphRunTransition" });
+  });
+
+  it("does not expose runs across user scopes", async () => {
+    const result = await runTest(
+      Effect.gen(function* () {
+        const graphs = yield* GraphService;
+        const graphRuns = yield* GraphRunService;
+        const graph = yield* graphs.create(scope, projectId, {
+          name: "Private pipeline",
+          nodes: [node("only")],
+          edges: [],
+        });
+        const run = yield* graphRuns.start(scope, graph.id, commandId, "Go");
+        const lookup = yield* Effect.flip(graphRuns.get(otherScope, run.id));
+        const listed = yield* graphRuns.listByGraph(otherScope, graph.id);
+        return { lookup, listed };
+      }),
+    );
+
+    expect(result.lookup).toMatchObject({ _tag: "GraphRunNotFound" });
+    expect(result.listed).toEqual([]);
   });
 });

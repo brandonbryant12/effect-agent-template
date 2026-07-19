@@ -2,10 +2,12 @@ import {
   AgentRun,
   AgentRunId,
   AgentRunEvent,
+  AgentRunStatus,
   ApprovalRequest,
   JobId,
   type ApprovalId,
   type ApprovalRequest as ApprovalRequestType,
+  isTerminalAgentRunStatus,
 } from "@repo/contracts";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
@@ -191,11 +193,17 @@ export const ApprovalServiceLive = Layer.effect(
                 return yield* Effect.fail(
                   new PersistenceError({ operation: "cancel-run-not-found" }),
                 );
-              if (
-                row.status === "completed" ||
-                row.status === "failed" ||
-                row.status === "cancelled"
-              ) {
+              const status = yield* Schema.decodeUnknownEffect(AgentRunStatus)(
+                row.status,
+              ).pipe(
+                Effect.mapError(
+                  () =>
+                    new PersistenceError({
+                      operation: "decode-cancel-run-status",
+                    }),
+                ),
+              );
+              if (isTerminalAgentRunStatus(status)) {
                 return yield* Effect.fail(
                   new RunControlRejected({ runId, reason: "terminal" }),
                 );

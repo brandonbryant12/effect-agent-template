@@ -8,6 +8,7 @@ import type {
 } from "@repo/contracts";
 import {
   GraphRunId as GraphRunIdSchema,
+  isSkippableGraphNodeStatus,
   isTerminalGraphRunStatus,
 } from "@repo/contracts";
 import { Effect, Schema } from "effect";
@@ -173,7 +174,7 @@ export const makeGraphRunHandler =
       for (const node of failed) {
         for (const descendant of descendantsOf(state.run.edges, node.nodeId)) {
           const target = state.nodes.find((n) => n.nodeId === descendant);
-          if (target?.status === "pending" || target?.status === "ready") {
+          if (target && isSkippableGraphNodeStatus(target.status)) {
             skippable.add(descendant);
           }
         }

@@ -1,5 +1,5 @@
 import type { Principal } from "@repo/auth";
-import { CommandId } from "@repo/contracts";
+import { CommandId, isTerminalGraphNodeStatus } from "@repo/contracts";
 import {
   ApiRoutes,
   decodeParams,
@@ -267,7 +267,7 @@ export const makeApiHandler = (services: ApiServices) => {
       for (const node of detail.nodes) {
         if (
           node.agentRunId !== null &&
-          (node.status === "running" || node.status === "awaiting-approval")
+          !isTerminalGraphNodeStatus(node.status)
         ) {
           try {
             await run(services.approvals.cancelRun(scope, node.agentRunId));
