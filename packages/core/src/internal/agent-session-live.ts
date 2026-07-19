@@ -12,6 +12,7 @@ import {
   InvalidAgentSessionTransition,
 } from "../agent-session-service.js";
 import { PersistenceError } from "../errors.js";
+import { allowedSessionTransitions } from "../agent-session-transitions.js";
 import { nowTimestamp } from "./sql-helpers.js";
 import type { AccessScope } from "../access-scope.js";
 
@@ -32,24 +33,6 @@ const decode = (row: Row) =>
       () => new PersistenceError({ operation: "decode-agent-session" }),
     ),
   );
-
-const allowed: Readonly<
-  Record<AgentSession["status"], ReadonlySet<AgentSession["status"]>>
-> = {
-  provisioning: new Set(["ready", "failed", "terminated"]),
-  ready: new Set(["running", "paused", "terminated"]),
-  running: new Set([
-    "ready",
-    "awaiting-approval",
-    "paused",
-    "failed",
-    "terminated",
-  ]),
-  "awaiting-approval": new Set(["running", "failed", "terminated"]),
-  paused: new Set(["ready", "terminated"]),
-  failed: new Set(["terminated"]),
-  terminated: new Set(),
-};
 
 export const AgentSessionServiceLive = Layer.effect(
   AgentSessionService,
@@ -137,7 +120,7 @@ export const AgentSessionServiceLive = Layer.effect(
       transition: (scope, id, status) =>
         Effect.gen(function* () {
           const current = yield* get(scope, id);
-          if (!allowed[current.status].has(status)) {
+          if (!allowedSessionTransitions[current.status].has(status)) {
             return yield* new InvalidAgentSessionTransition({
               from: current.status,
               to: status,

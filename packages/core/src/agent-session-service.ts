@@ -13,6 +13,7 @@ import {
 import { Context, Effect, Layer, Ref, Schema } from "effect";
 import { PersistenceError } from "./errors.js";
 import type { AccessScope } from "./access-scope.js";
+import { allowedSessionTransitions } from "./agent-session-transitions.js";
 
 export interface CreateAgentSession {
   readonly projectId: ProjectId;
@@ -51,24 +52,6 @@ export class AgentSessionService extends Context.Service<
     >;
   }
 >()("repo/AgentSessionService") {}
-
-const allowed: Readonly<
-  Record<AgentSessionStatus, ReadonlySet<AgentSessionStatus>>
-> = {
-  provisioning: new Set(["ready", "failed", "terminated"]),
-  ready: new Set(["running", "paused", "terminated"]),
-  running: new Set([
-    "ready",
-    "awaiting-approval",
-    "paused",
-    "failed",
-    "terminated",
-  ]),
-  "awaiting-approval": new Set(["running", "failed", "terminated"]),
-  paused: new Set(["ready", "terminated"]),
-  failed: new Set(["terminated"]),
-  terminated: new Set(),
-};
 
 const timestamp = (value: string) => Schema.decodeUnknownSync(Timestamp)(value);
 
@@ -112,7 +95,7 @@ export const AgentSessionServiceTest = Layer.effect(
       get,
       transition: (scope, id, status) =>
         Effect.flatMap(get(scope, id), (current) => {
-          if (!allowed[current.status].has(status)) {
+          if (!allowedSessionTransitions[current.status].has(status)) {
             return Effect.fail(
               new InvalidAgentSessionTransition({
                 from: current.status,

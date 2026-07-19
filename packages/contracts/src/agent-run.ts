@@ -100,3 +100,27 @@ export const AgentRunEvent = Schema.Union([
   RunCancelled,
 ]);
 export type AgentRunEvent = typeof AgentRunEvent.Type;
+
+/**
+ * Single authority for how a durable event moves a run's status. The worker
+ * journal and every client projection derive status from this one function
+ * so they can never disagree.
+ */
+export const runStatusForEvent = (
+  event: AgentRunEvent,
+): AgentRunStatus | undefined => {
+  switch (event._tag) {
+    case "RunCompleted":
+      return "completed";
+    case "RunCancelled":
+      return "cancelled";
+    case "RunFailed":
+      return "failed";
+    case "ApprovalRequested":
+      return "awaiting-approval";
+    case "RunStatusChanged":
+      return event.status;
+    default:
+      return undefined;
+  }
+};

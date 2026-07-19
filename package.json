@@ -28,7 +28,6 @@
     "infra:check": "docker compose config --quiet && pnpm template:check"
   },
   "devDependencies": {
-    "@effect/vitest": "catalog:",
     "@google/design.md": "^0.3.0",
     "@types/node": "^24.10.0",
     "effect": "catalog:",

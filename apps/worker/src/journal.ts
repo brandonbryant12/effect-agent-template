@@ -3,6 +3,7 @@ import type { AgentRuntimeEvent } from "@repo/agent-runtime";
 import {
   AgentRunEvent,
   ApprovalId,
+  runStatusForEvent,
   Timestamp,
   type AgentRunId,
 } from "@repo/contracts";
@@ -146,16 +147,7 @@ export const makeAgentRunJournalPostgres = Effect.gen(function* () {
               )
             `;
             }
-            const status =
-              event._tag === "RunCompleted"
-                ? "completed"
-                : event._tag === "RunCancelled"
-                  ? "cancelled"
-                  : event._tag === "RunFailed"
-                    ? "failed"
-                    : event._tag === "ApprovalRequested"
-                      ? "awaiting-approval"
-                      : undefined;
+            const status = runStatusForEvent(event);
             if (status) {
               yield* sql`
               UPDATE agent_runs SET status = ${status}, updated_at = ${now}

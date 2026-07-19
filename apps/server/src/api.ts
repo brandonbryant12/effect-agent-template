@@ -298,7 +298,18 @@ export const makeApiHandler = (services: ApiServices) => {
       if (error instanceof SyntaxError || Schema.isSchemaError(error)) {
         return respond(json({ error: "invalid_request" }, 400));
       }
-      return respond(json({ error: "request_failed" }, statusFor(error)));
+      const status = statusFor(error);
+      if (status === 500) {
+        // Expected domain errors are mapped above; anything reaching 500 is
+        // a defect and must be visible, not silently swallowed.
+        console.error(
+          "unhandled request error",
+          request.method,
+          subPath,
+          error,
+        );
+      }
+      return respond(json({ error: "request_failed" }, status));
     }
   };
 };

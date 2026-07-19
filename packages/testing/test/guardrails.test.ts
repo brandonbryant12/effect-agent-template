@@ -50,7 +50,7 @@ describe("repository guardrail contract", () => {
     const versions = [...catalog.matchAll(/^\s+"?[^:"]+"?:\s*(\S+)$/gm)].map(
       (entry) => entry[1],
     );
-    expect(versions.length).toBeGreaterThanOrEqual(3);
+    expect(versions.length).toBeGreaterThanOrEqual(2);
     expect(new Set(versions).size).toBe(1);
     expect(versions[0]).toMatch(/^\d/);
   });

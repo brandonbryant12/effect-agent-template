@@ -1,6 +1,7 @@
 export * from "./errors.js";
 export * from "./live.js";
 export * from "./agent-session-service.js";
+export * from "./agent-session-transitions.js";
 export * from "./credential-service.js";
 export * from "./credential-secret-service.js";
 export * from "./conversation-service.js";
