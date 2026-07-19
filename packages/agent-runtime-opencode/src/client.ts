@@ -17,7 +17,7 @@ export const makeOpenCodeSdkDriver = (): OpenCodeDriver => {
   return {
     createSession: async (connection) => {
       const response = await client(connection).session.create();
-      if (response.error) throw new Error("OpenCode session creation failed");
+      if (response.error) throw response.error;
       return Schema.decodeUnknownSync(SessionResponse)(response.data).id;
     },
     send: async (connection, sessionId, message) => {
@@ -25,7 +25,7 @@ export const makeOpenCodeSdkDriver = (): OpenCodeDriver => {
         sessionID: sessionId,
         parts: [{ type: "text", text: message }],
       });
-      if (response.error) throw new Error("OpenCode prompt failed");
+      if (response.error) throw response.error;
     },
     events: async function* (connection, _sessionId) {
       const response = await client(connection).event.subscribe();
@@ -44,19 +44,19 @@ export const makeOpenCodeSdkDriver = (): OpenCodeDriver => {
         requestID: requestId,
         reply: decision,
       });
-      if (response.error) throw new Error("OpenCode permission reply failed");
+      if (response.error) throw response.error;
     },
     cancel: async (connection, sessionId) => {
       const response = await client(connection).session.abort({
         sessionID: sessionId,
       });
-      if (response.error) throw new Error("OpenCode cancellation failed");
+      if (response.error) throw response.error;
     },
     close: async (connection, sessionId) => {
       const response = await client(connection).session.delete({
         sessionID: sessionId,
       });
-      if (response.error) throw new Error("OpenCode session cleanup failed");
+      if (response.error) throw response.error;
     },
   };
 };

@@ -20,6 +20,7 @@ import {
   TaskService,
 } from "@repo/core";
 import type { CredentialUploadService } from "@repo/secrets";
+import { makeRequestId, safeErrorDetail } from "@repo/observability";
 import { Context, Effect, Schema } from "effect";
 
 export interface ApiServices {
@@ -309,10 +310,14 @@ export const makeApiHandler = (services: ApiServices) => {
   const routeNames = Object.keys(ApiRoutes) as ReadonlyArray<RouteName>;
 
   return async (request: Request): Promise<Response> => {
+    const requestId = makeRequestId();
     const url = new URL(request.url);
     const origin = request.headers.get("origin") ?? "";
-    const respond = (response: Response) =>
-      withCors(response, origin, services.webOrigin);
+    const respond = (response: Response) => {
+      const next = withCors(response, origin, services.webOrigin);
+      next.headers.set("x-request-id", requestId);
+      return next;
+    };
     if (request.method === "OPTIONS")
       return respond(new Response(null, { status: 204 }));
     if (url.pathname === "/healthz") {
@@ -372,12 +377,12 @@ export const makeApiHandler = (services: ApiServices) => {
       if (status === 500) {
         // Expected domain errors are mapped above; anything reaching 500 is
         // a defect and must be visible, not silently swallowed.
-        console.error(
-          "unhandled request error",
-          request.method,
-          subPath,
-          error,
-        );
+        console.error("unhandled request error", {
+          requestId,
+          method: request.method,
+          path: subPath,
+          detail: safeErrorDetail(error),
+        });
       }
       return respond(json({ error: "request_failed" }, status));
     }

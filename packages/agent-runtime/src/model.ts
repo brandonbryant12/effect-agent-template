@@ -63,11 +63,14 @@ export class AgentRuntimeError extends Schema.TaggedErrorClass<AgentRuntimeError
     operation: Schema.String,
     reason: Schema.Literals([
       "not-found",
+      "forbidden",
+      "rate-limited",
       "unavailable",
       "invalid-event",
       "permission-mismatch",
       "cancelled",
     ]),
     retryable: Schema.Boolean,
+    detail: Schema.optionalKey(Schema.String),
   },
 ) {}

@@ -247,6 +247,16 @@ integration("public server API", () => {
           runResponse.status,
         ],
         events: yield* Effect.promise(() => events.text()),
+        requestIds: [
+          projectResponse,
+          conversationResponse,
+          sessionResponse,
+          runResponse,
+          graphResponse,
+          graphRunResponse,
+          graphRunDetail,
+          invalidGraphResponse,
+        ].map((response) => response.headers.get("x-request-id")),
       };
     });
 
@@ -258,6 +268,14 @@ integration("public server API", () => {
       expect(result.events).toContain("event: run-event");
       expect(result.graphStatuses).toEqual([201, 202, 200, 409]);
       expect(result.graphNodes).toHaveLength(2);
+      expect(result.requestIds).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+          ),
+        ]),
+      );
+      expect(result.requestIds.every((value) => value !== null)).toBe(true);
     } finally {
       await auth.close();
     }
