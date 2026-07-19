@@ -15,8 +15,10 @@ import {
   GraphRunNotFound,
   InvalidGraphRunTransition,
 } from "./graph-errors.js";
-import { allowedGraphRunTransitions } from "./graph-run-transitions.js";
-import { isSkippableGraphNodeStatus } from "./graph-run-transitions.js";
+import {
+  allowedGraphRunTransitions,
+  isSkippableGraphNodeStatus,
+} from "./graph-run-transitions.js";
 import { GraphService } from "./graph-service.js";
 
 export class GraphRunService extends Context.Service<
