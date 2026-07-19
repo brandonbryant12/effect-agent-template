@@ -42,7 +42,10 @@ interface FakeWorld {
 }
 
 const makeWorld = (
-  definition: { nodes: ReadonlyArray<GraphNode>; edges: ReadonlyArray<GraphEdge> },
+  definition: {
+    nodes: ReadonlyArray<GraphNode>;
+    edges: ReadonlyArray<GraphEdge>;
+  },
   input = "Ship it",
 ) => {
   const world: FakeWorld = {
@@ -235,7 +238,11 @@ describe("graph run coordinator", () => {
   it("substitutes input and outputs; reports unresolved references", () => {
     const outputs = new Map([["plan", "PLAN"]]);
     expect(
-      substituteTemplate("Do {{input}} with {{nodes.plan.output}}", "X", outputs),
+      substituteTemplate(
+        "Do {{input}} with {{nodes.plan.output}}",
+        "X",
+        outputs,
+      ),
     ).toBe("Do X with PLAN");
     expect(
       substituteTemplate("{{nodes.ghost.output}}", "X", outputs),

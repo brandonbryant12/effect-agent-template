@@ -34,7 +34,9 @@ export interface GraphCoordinatorJournal {
     id: GraphRunId,
   ) => Effect.Effect<GraphRunState, GraphJournalError>;
   /** Maps underlying agent-run statuses onto node rows. */
-  readonly reconcile: (id: GraphRunId) => Effect.Effect<void, GraphJournalError>;
+  readonly reconcile: (
+    id: GraphRunId,
+  ) => Effect.Effect<void, GraphJournalError>;
   readonly markReady: (
     id: GraphRunId,
     nodes: ReadonlyArray<GraphNodeId>,
@@ -123,14 +125,17 @@ export const substituteTemplate = (
   let unresolved: string | undefined;
   const result = template
     .replaceAll("{{input}}", input)
-    .replaceAll(/\{\{nodes\.([a-z][a-z0-9-]*)\.output\}\}/g, (_match, id: string) => {
-      const output = outputs.get(id);
-      if (output === undefined) {
-        unresolved = unresolved ?? id;
-        return "";
-      }
-      return output;
-    });
+    .replaceAll(
+      /\{\{nodes\.([a-z][a-z0-9-]*)\.output\}\}/g,
+      (_match, id: string) => {
+        const output = outputs.get(id);
+        if (output === undefined) {
+          unresolved = unresolved ?? id;
+          return "";
+        }
+        return output;
+      },
+    );
   return unresolved === undefined
     ? result
     : { _tag: "UnresolvedReference", reference: unresolved };
@@ -148,11 +153,21 @@ export const makeGraphRunHandler =
     Effect.gen(function* () {
       const payload = yield* Schema.decodeUnknownEffect(GraphRunPayload)(
         job.payload,
-      ).pipe(Effect.mapError(() => new JobHandlerError({ code: "invalid_graph_run_job", retryable: false })));
+      ).pipe(
+        Effect.mapError(
+          () =>
+            new JobHandlerError({
+              code: "invalid_graph_run_job",
+              retryable: false,
+            }),
+        ),
+      );
       const id = payload.graphRunId;
 
       yield* journal.reconcile(id).pipe(Effect.mapError(journalFailure));
-      const state = yield* journal.load(id).pipe(Effect.mapError(journalFailure));
+      const state = yield* journal
+        .load(id)
+        .pipe(Effect.mapError(journalFailure));
       if (TERMINAL.has(state.run.status)) return;
 
       // Failure propagation: descendants of failed nodes can never run.

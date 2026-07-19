@@ -12,6 +12,7 @@
     "@repo/agent-runtime-opencode": "workspace:*",
     "@repo/config": "workspace:*",
     "@repo/contracts": "workspace:*",
+    "@repo/core": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/queue": "workspace:*",
     "@repo/sandbox": "workspace:*",

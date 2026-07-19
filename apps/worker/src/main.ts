@@ -19,12 +19,15 @@ import { makeAwsSecretStore } from "@repo/secrets";
 import {
   makeAgentRunHandler,
   makeCancelHandler,
+  makeGraphRunHandler,
   makePermissionHandler,
   makeWorkerRuntime,
 } from "@repo/worker";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { AgentRunService, AgentRunServiceLive } from "@repo/core";
 import { makeAgentRunJournalPostgres } from "./journal.js";
+import { makeGraphCoordinatorJournal } from "./graph-journal.js";
 import { WorkerInfrastructureLive } from "./layers.js";
 import { makeSessionCredentialInstaller } from "./credentials.js";
 
@@ -37,6 +40,8 @@ const program = Effect.gen(function* () {
   const queue = yield* JobQueueService;
   const config = yield* AppConfig;
   const journal = yield* makeAgentRunJournalPostgres;
+  const agentRuns = yield* AgentRunService;
+  const graphJournal = yield* makeGraphCoordinatorJournal(agentRuns);
   const sql = yield* SqlClient;
   const live = config.sandboxProvider === "opensandbox";
   const connections = new Map<string, OpenCodeConnection>();
@@ -124,6 +129,7 @@ const program = Effect.gen(function* () {
       "agent-run": agentRunHandler,
       "agent-permission": makePermissionHandler(agentRuntime, journal),
       "agent-cancel": makeCancelHandler(agentRuntime),
+      "graph-run": makeGraphRunHandler(graphJournal),
     },
   });
   while (!abort.signal.aborted) {
@@ -132,7 +138,14 @@ const program = Effect.gen(function* () {
   }
 });
 
-const MainLive = Layer.provideMerge(WorkerInfrastructureLive, AppConfigLive);
+const Infrastructure = Layer.provideMerge(
+  WorkerInfrastructureLive,
+  AppConfigLive,
+);
+const MainLive = Layer.merge(
+  Layer.provide(AgentRunServiceLive, Infrastructure),
+  Infrastructure,
+);
 
 Effect.runPromise(Effect.provide(program, MainLive)).catch((error: unknown) => {
   console.error("worker failed", error);
