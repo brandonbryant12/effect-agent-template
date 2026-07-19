@@ -1,6 +1,10 @@
 import {
   AgentRunService,
   AgentRunServiceLive,
+  GraphRunService,
+  GraphRunServiceLive,
+  GraphService,
+  GraphServiceLive,
   ProjectService,
   ProjectServiceLive,
   TaskService,
@@ -13,6 +17,7 @@ import {
   AgentSessionId,
   CommandId,
   ConversationId,
+  GraphNodeId,
   ProjectId,
   TaskId,
   TenantId,
@@ -34,7 +39,13 @@ integration("Postgres capabilities", () => {
   const Postgres = PostgresLive(databaseUrl ?? "");
   const Services = Layer.merge(
     Layer.provide(
-      Layer.mergeAll(ProjectServiceLive, TaskServiceLive, AgentRunServiceLive),
+      Layer.mergeAll(
+        ProjectServiceLive,
+        TaskServiceLive,
+        AgentRunServiceLive,
+        GraphServiceLive,
+        GraphRunServiceLive,
+      ),
       Postgres,
     ),
     Postgres,
@@ -160,5 +171,63 @@ integration("Postgres capabilities", () => {
       jobs: 1,
       prompt: "Build the project",
     });
+  });
+
+  it("starts a graph run with snapshot, nodes, and job exactly once", async () => {
+    const program = Effect.gen(function* () {
+      yield* runMigrations;
+      const sql = yield* SqlClient;
+      const projects = yield* ProjectService;
+      const graphs = yield* GraphService;
+      const graphRuns = yield* GraphRunService;
+      const project = yield* projects.create(scope, {
+        name: "Graph host",
+        description: null,
+      });
+      const graph = yield* graphs.create(scope, project.id, {
+        name: "Diamond",
+        nodes: [
+          {
+            id: Schema.decodeUnknownSync(GraphNodeId)("plan"),
+            name: "Plan",
+            promptTemplate: "Plan {{input}}",
+            position: { x: 0, y: 0 },
+          },
+          {
+            id: Schema.decodeUnknownSync(GraphNodeId)("build"),
+            name: "Build",
+            promptTemplate: "Build using {{nodes.plan.output}}",
+            position: { x: 200, y: 0 },
+          },
+        ],
+        edges: [
+          {
+            from: Schema.decodeUnknownSync(GraphNodeId)("plan"),
+            to: Schema.decodeUnknownSync(GraphNodeId)("build"),
+          },
+        ],
+      });
+      const commandId = Schema.decodeUnknownSync(CommandId)(
+        "command_01J00000000000000000000002",
+      );
+      yield* sql`DELETE FROM graph_runs WHERE command_id = ${commandId}`;
+      const first = yield* graphRuns.start(scope, graph.id, commandId, "Go");
+      const repeated = yield* graphRuns.start(scope, graph.id, commandId, "Go");
+      const detail = yield* graphRuns.get(scope, first.id);
+      const jobs = yield* sql<{ readonly jobs: number }>`
+        SELECT count(*)::int AS jobs FROM jobs
+        WHERE kind = 'graph-run' AND payload->>'graphRunId' = ${first.id}
+      `;
+      return { first, repeated, detail, jobs: jobs[0]?.jobs };
+    });
+
+    const result = await Effect.runPromise(Effect.provide(program, Services));
+    expect(result.repeated.id).toBe(result.first.id);
+    expect(result.first.nodes).toHaveLength(2);
+    expect(result.detail.nodes.map((node) => node.status)).toEqual([
+      "pending",
+      "pending",
+    ]);
+    expect(result.jobs).toBe(1);
   });
 });

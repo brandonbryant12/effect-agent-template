@@ -1,6 +1,7 @@
 export * from "./errors.js";
 export * from "./graph-errors.js";
 export * from "./graph-run-transitions.js";
+export * from "./graph-run-service.js";
 export * from "./graph-service.js";
 export * from "./graph-validation.js";
 export * from "./live.js";
