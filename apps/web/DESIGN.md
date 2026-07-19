@@ -204,5 +204,8 @@ allowed. Respect `prefers-reduced-motion`.
 
 Do update this file before introducing a reusable visual token. Do make empty
 and error states explain the next action. Do preserve visible focus and a
-44-pixel mobile target. Do not use arbitrary feature colors, glassmorphism,
-purple AI gradients, or raw markdown output.
+44-pixel mobile target. Owned application and `packages/ui` code uses semantic
+token utilities; the two vendored component directories are the only source
+exemptions. Keep rich transcript rendering behind its lazy feature boundary so
+the production entry stays at or below 750 KiB. Do not use arbitrary feature
+colors, glassmorphism, purple AI gradients, or raw markdown output.

@@ -24,7 +24,11 @@ pnpm db:migrate
 pnpm dev
 ```
 
-`pnpm dev` loads the optional root `.env` and starts persistent application tasks through Turborepo. `pnpm build` runs the dependency-aware, cached Turbo build graph.
+`pnpm dev` loads the optional root `.env` and starts persistent application
+tasks through Turborepo. `pnpm build` schedules deployable build tasks through
+Turbo; today that means the web production bundle. Workspace packages export
+TypeScript source and are validated together by `pnpm typecheck` rather than
+pretending to emit independent artifacts.
 
 The CLI uses the same API through Device Authorization. On macOS it stores the bearer token in Keychain; other platforms use an owner-only `0600` file under the user config directory.
 
@@ -41,8 +45,10 @@ pnpm build
 pnpm infra:check
 ```
 
-`pnpm guardrails` runs lint, typecheck, architecture and template checks,
-design lint, and the Docker-free test suite. CI runs the same chain plus
+`pnpm guardrails` runs lint, typecheck, architecture, dependency, template,
+and design checks plus the Docker-free test suite. The web production build
+also enforces a 750 KiB initial-entry budget; rich transcript rendering loads
+on demand. CI runs the same chain plus
 Postgres-backed integration tests, image builds, a Compose smoke test, and
 Helm lint. Postgres suites run locally too when `DATABASE_URL` points at a
 running database.
@@ -57,8 +63,9 @@ running database.
 - A provider-neutral `AgentRuntime`, a direct Effect/OpenAI Responses example, and pinned OpenCode SDK/CLI adapters.
 - One OpenSandbox workspace per agent session, default-deny egress, and credential-vault bindings.
 - A narrow, write-only secret upload broker with memory and AWS Secrets Manager implementations.
+- Correlated HTTP responses and bounded, redacted provider diagnostics through `@repo/observability`.
 - Non-root Docker images, complete Docker Compose development, Helm deployment, and an optional EKS Terraform baseline.
-- Agent instructions, architecture checks, `DESIGN.md` drift linting, Effect recipes, and template/domain-leak checks.
+- Agent instructions, architecture/dependency checks, `DESIGN.md` token enforcement, an initial-bundle budget, Effect recipes, and template/domain-leak checks.
 
 ## Repository map
 

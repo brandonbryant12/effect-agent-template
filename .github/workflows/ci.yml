@@ -28,8 +28,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm guardrails
       - run: pnpm build
-      - run: pnpm template:check
-      - run: pnpm vitest run packages/db/test apps/server/test packages/queue/test/postgres.integration.test.ts
+      - run: pnpm vitest run packages/db/test apps/server/test apps/worker/test packages/queue/test
         env:
           DATABASE_URL: postgres://agent:agent@localhost:5432/agent
           RUN_POSTGRES_TESTS: "1"

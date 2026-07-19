@@ -60,6 +60,11 @@ the v4 beta and the owned table keeps the teaching surface small. When
 platform HttpApi stabilizes, migrating from the table is mechanical because
 the contract is already centralized.
 
+Client completeness is checked in two ways: `coveredClientRoutes` is compared
+with the route table at runtime, and the Promise facade is a mapped type over
+the Effect client. A new route or method therefore requires an explicit
+facade decision instead of silently disappearing from one consumer.
+
 ## 6. Hand-rolled `node:http` bridge, extracted to `@repo/node-http`
 
 The template predates a stable v4 platform HTTP server. Rather than adopt
@@ -109,10 +114,10 @@ queue double) carry the annotation instead.
 
 ## 11. Structural guardrails are regex checks, not a lint plugin
 
-`scripts/check-architecture.ts` is ~150 lines of string matching. That is a
-deliberate trade: it runs in milliseconds with zero dependencies, an agent
-can read the entire rule set in one screen, and adding a rule is a
-five-line diff. The known cost is soundness — regexes can be fooled by
+`scripts/check-architecture.ts` is a small, dependency-free set of string
+checks. That is a deliberate trade: it runs in milliseconds, an agent can
+read the rule set directly, and adding a rule is a small diff. The known cost
+is soundness — regexes can be fooled by
 aliased imports or string tricks. The rules are tripwires for honest
 mistakes, not a sandbox against adversarial code; the review step remains
 the backstop. If a rule ever needs real semantics, that one rule can move
@@ -139,21 +144,25 @@ would double its length and halve the chance an agent reads it.
 ## 14. Guardrails are one command, and CI is a superset
 
 `pnpm guardrails` runs everything that needs no Docker: lint, typecheck,
-architecture, design lint, template check, tests. One command is the
+architecture, direct-dependency hygiene, design lint, template check, tests. One command is the
 definition of done precisely because agents reliably run one command and
 unreliably run five. CI adds what needs infrastructure (Postgres suites,
 images, Compose smoke, Helm lint). The meta-test in
-`packages/testing/test/guardrails.test.ts` pins the chain's contents so
-the gate cannot silently weaken.
+`test/guardrails.test.ts` pins the chain's contents and complete CI Postgres
+matrix so the gate cannot silently weaken.
 
 ## 15. DESIGN.md is a machine-checked contract, not a style guide
 
-Visual drift is the default outcome when colors are string literals in
-JSX. The palette lives in `DESIGN.md` (linted by `design.md`), is declared
+Visual drift is the default outcome when colors are string literals or raw
+palette utilities in JSX. The palette lives in `DESIGN.md` (linted by `design.md`), is declared
 once as Tailwind `@theme` tokens, and hex literals in non-vendored web code
 are rejected. A drift test binds DESIGN.md to the CSS so the contract and
 the runtime cannot diverge. Vendored component directories are exempt from
 source-level rules — they are upstream code we chose not to fork further.
+
+The rich transcript is also a design-system boundary with a performance cost:
+syntax highlighting, math, and Mermaid are lazy-loaded, and the Vite manifest
+gate caps the initial JavaScript entry at 750 KiB.
 
 ## 16. Vendored UI code is exempt, not rewritten
 
@@ -194,3 +203,20 @@ statechart rather than filtered by callers), terminality is derived from
 the route table. The cost is a little indirection at definition sites; the
 payoff is that adding a status, route, or token is a one-place change and
 every consumer follows automatically.
+
+## 19. Correlate requests and sanitize provider diagnostics at the boundary
+
+The client already modeled a request ID, so every server response emits
+`x-request-id` and unexpected-error logs include the same value. Provider
+adapters retain a narrow reason plus an optional 240-character sanitized
+detail; they never attach a raw SDK cause. This keeps failures diagnosable
+without turning logs or serialized errors into a secret side channel.
+
+## 20. Source-workspace packages, not fictional per-package builds
+
+Workspace packages export TypeScript source and the root compiler validates
+them as one program. Turbo still schedules deployable tasks and caches the web
+build, but most packages do not emit artifacts. Independent builds would
+require project references, declaration/output contracts, and compiled package
+exports. Until that migration is intentionally designed, adding empty build
+scripts would make the graph look healthy while proving nothing.

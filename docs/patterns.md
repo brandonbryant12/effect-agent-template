@@ -45,7 +45,8 @@ src/
 ```
 
 - Every production `Layer` lives in `internal/<name>-live.ts` and is exported
-  through `live.ts`. Interface files never contain implementation (why §1).
+  through `live.ts`. Small deterministic Test layers may live beside the
+  public service contract; they never import SQL or provider SDKs.
 - No file imports another package's `internal/` path (**enforced**).
 - Deterministic doubles (`*Test`, `*Fake`, `make*Test`) are real providers:
   local development selects them through `AppConfig` (`AI_PROVIDER=fake`,
@@ -133,6 +134,14 @@ request from the same definitions. To add an endpoint:
 
 `packages/contracts/test/http.test.ts` guards table integrity (param/token
 agreement, no duplicate method+path, matcher round-trips).
+`packages/client/test/client.test.ts` compares `coveredClientRoutes` with the
+table, and `PromiseAgentClient` is mapped from `AgentClient`, so either facade
+fails loudly when the public surface changes.
+
+Every response carries `x-request-id`. Unexpected defects are logged only at
+the app boundary with that ID and `safeErrorDetail`; adapters preserve
+not-found, forbidden, rate-limited, and unavailable reasons without retaining
+raw provider objects or credentials.
 
 ## Configuration
 
@@ -145,7 +154,8 @@ agreement, no duplicate method+path, matcher round-trips).
 ## Frontend state
 
 - TanStack Query owns remote state; query keys and option factories live in
-  `packages/client-react`.
+  `packages/client-react`. An unavailable branded ID is represented by
+  `undefined` plus `skipToken`, never a fabricated empty ID.
 - XState owns only real workflows (active run, approval, reconnect).
 - Base UI is imported only inside `packages/ui`; `radix-ui`/`cmdk` only
   inside the vendored `apps/web/src/components/ui/` directory or
@@ -153,9 +163,11 @@ agreement, no duplicate method+path, matcher round-trips).
 - Visual tokens come from `apps/web/DESIGN.md` (why §15), are declared as Tailwind
   `@theme` colors in `src/styles.css`, and are used as named utilities
   (`text-blueprint`, `border-line`). Hex literals in non-vendored web code
-  are rejected (**enforced**), and `src/design-tokens.test.ts` fails when
-  DESIGN.md and the CSS theme drift apart. Update the contract and the code
-  in the same change.
+  and raw palette utilities in owned web/UI code are rejected (**enforced**),
+  and `src/design-tokens.test.ts` fails when DESIGN.md and the CSS theme drift
+  apart. Update the contract and the code in the same change. Rich transcript
+  rendering stays behind the lazy `RunTranscript` boundary; the production
+  build rejects an initial entry larger than 750 KiB.
 
 ## Agent graphs
 
@@ -196,3 +208,9 @@ them into new code as precedent:
   wiring with `packages/core` (see decisions §2 for when).
 - The shared `@repo/node-http` bridge may later be replaced by
   `@effect/platform` HttpServer once it stabilizes (decisions §6).
+- The worker's one-second idle poll may later become an interruptible
+  `JobQueue.awaitWork` backed by Postgres `LISTEN/NOTIFY` plus a timeout
+  fallback. That changes queue semantics and needs its own decision.
+- Workspace packages intentionally export source and share one root
+  typecheck. Independent emitted package builds require project references
+  and explicit output contracts; do not add no-op `build` scripts.

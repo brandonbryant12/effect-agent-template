@@ -55,4 +55,21 @@ describe("repository guardrail contract", () => {
     expect(new Set(versions).size).toBe(1);
     expect(versions[0]).toMatch(/^\d/);
   });
+
+  it("runs the complete PostgreSQL matrix without duplicate CI gates", async () => {
+    const workflow = await readFile(
+      resolve(root, ".github/workflows/ci.yml"),
+      "utf8",
+    );
+    for (const path of [
+      "packages/db/test",
+      "apps/server/test",
+      "apps/worker/test",
+      "packages/queue/test",
+    ]) {
+      expect(workflow).toContain(path);
+    }
+    expect(workflow).toContain("RUN_POSTGRES_TESTS");
+    expect(workflow).not.toMatch(/^\s*- run: pnpm template:check\s*$/m);
+  });
 });
